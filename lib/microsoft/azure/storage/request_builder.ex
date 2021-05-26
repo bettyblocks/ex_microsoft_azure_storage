@@ -195,7 +195,7 @@ defmodule Microsoft.Azure.Storage.RequestBuilder do
       |> Enum.join("\n")
 
     signature =
-      :crypto.hmac(:sha256, storage_context.account_key |> Base.decode64!(), stringToSign)
+      Storage.Crypto.hmac(:sha256, account_key |> Base.decode64!(), stringToSign)
       |> Base.encode64()
 
     data
