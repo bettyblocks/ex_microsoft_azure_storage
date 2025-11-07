@@ -27,10 +27,77 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobPropertiesTest do
         {"x-ms-access-tier-inferred", "true"},
         {"x-ms-access-tier-change-time", "Mon, 12 Jul 2021 18:18:21 GMT"},
         {"connection", "keep-alive"},
-        {"keep-alive", "timeout=5"}
+        {"keep-alive", "timeout=5"},
+        {"x-ms-meta-x-frame-options", "DENY"},
+        {"x-ms-meta-content-security-policy", "default-src 'self'"},
+        {"x-ms-meta-enable-cors-protection", "true"}
       ]
 
-      assert headers |> BlobProperties.deserialise()
+      expected = %BlobProperties{
+        accept_ranges: "bytes",
+        access_tier: "Hot",
+        access_tier_change_time: ~U[2021-07-12 18:18:21Z],
+        access_tier_inferred: true,
+        archive_status: nil,
+        blob_committed_block_count: nil,
+        blob_sealed: nil,
+        blob_sequence_number: nil,
+        blob_server_encrypted: nil,
+        blob_type: "BlockBlob",
+        cache_control: nil,
+        content_disposition: nil,
+        content_encoding: nil,
+        content_language: nil,
+        content_length: 12,
+        content_md5: "h/Fps4ugBcqAcVVmEmMG/w==",
+        content_type: "application/octet-stream",
+        copy_completion_time: nil,
+        copy_destination_snapshot: nil,
+        copy_id: nil,
+        copy_progress: nil,
+        copy_source: nil,
+        copy_status: nil,
+        copy_status_description: nil,
+        creation_time: ~U[2021-07-12 18:18:21Z],
+        encryption_key_sha256: nil,
+        encryption_scope: nil,
+        etag: "\"0x198B53AAAB848F0\"",
+        incremental_copy: nil,
+        last_access_time: nil,
+        last_modified: ~U[2021-07-12 18:18:21Z],
+        lease_duration: nil,
+        lease_state: "available",
+        lease_status: "unlocked",
+        meta: [
+          {"x-frame-options", "DENY"},
+          {"content-security-policy", "default-src 'self'"},
+          {"enable-cors-protection", "true"}
+        ],
+        rehydrate_priority: nil,
+        tag_count: nil
+      }
+
+      assert ^expected = headers |> BlobProperties.deserialise()
+    end
+  end
+
+  describe "serialise" do
+    test "serialises blob properties to headers" do
+      properties = %BlobProperties{
+        meta: [
+          {"x-frame-options", "DENY"},
+          {"content-security-policy", "default-src 'self'"},
+          {"enable-cors-protection", "true"}
+        ]
+      }
+
+      expected = [
+        {"x-ms-meta-x-frame-options", "DENY"},
+        {"x-ms-meta-content-security-policy", "default-src 'self'"},
+        {"x-ms-meta-enable-cors-protection", "true"}
+      ]
+
+      assert ^expected = properties |> BlobProperties.serialise()
     end
   end
 end
