@@ -84,6 +84,9 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobPropertiesTest do
   describe "serialise" do
     test "serialises blob properties to headers" do
       properties = %BlobProperties{
+        cache_control: nil,
+        content_type: "application/octet-stream",
+        content_length: 12,
         meta: [
           {"x-frame-options", "DENY"},
           {"content-security-policy", "default-src 'self'"},
@@ -92,6 +95,8 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobPropertiesTest do
       }
 
       expected = [
+        {"content-type", "application/octet-stream"},
+        {"content-length", "12"},
         {"x-ms-meta-x-frame-options", "DENY"},
         {"x-ms-meta-content-security-policy", "default-src 'self'"},
         {"x-ms-meta-enable-cors-protection", "true"}

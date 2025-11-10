@@ -136,26 +136,23 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
   """
   @spec serialise(properties :: __MODULE__.t()) :: headers()
   def serialise(%__MODULE__{} = properties) do
-    regular_headers =
-      @headers
-      |> Enum.reduce([], fn {header, key, type}, acc ->
-        case {key, Map.get(properties, key)} do
-          {_, nil} ->
-            acc
-
-          {:meta, _} ->
-            acc
-
-          {_, value} ->
-            encoded_value = encode(value, type)
-            [{header, encoded_value} | acc]
-        end
-      end)
-
     meta_headers =
-      properties |> Map.get(:meta, []) |> Enum.into([], fn {k, v} -> {"x-ms-meta-#{k}", v} end)
+      properties |> Map.get(:meta, []) |> Enum.map(fn {k, v} -> {"x-ms-meta-#{k}", v} end)
 
-    regular_headers ++ meta_headers
+    @headers
+    |> Enum.reduce(meta_headers, fn {header, key, type}, acc ->
+      case {key, Map.get(properties, key)} do
+        {_, nil} ->
+          acc
+
+        {:meta, _} ->
+          acc
+
+        {_, value} ->
+          encoded_value = encode(value, type)
+          [{header, encoded_value} | acc]
+      end
+    end)
   end
 
   @doc """
