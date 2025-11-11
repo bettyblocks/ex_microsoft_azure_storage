@@ -224,11 +224,6 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
     "x-ms-blob-content-disposition"
   ]
 
-  defp is_allowed_blob_header?(header) do
-    Enum.member?(@allowed_set_blob_headers, header) or
-      String.starts_with?(header, "x-ms-meta-")
-  end
-
   @doc """
   Sets blob properties.
 
@@ -447,7 +442,6 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
       |> struct(blob_properties)
       |> BlobProperties.serialise()
       |> Enum.map(&transform_set_blob_property_header/1)
-      |> Enum.filter(fn {header, _value} -> is_allowed_blob_header?(header) end)
 
     container
     |> to_blob(source_path, blob_name)
