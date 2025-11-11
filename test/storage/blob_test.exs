@@ -152,4 +152,42 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
       assert {:ok, %{body: ^blob_data}} = Blob.get_blob(target)
     end
   end
+
+  describe "upload_file" do
+    test "uploads a file with blob properties", %{container_context: container_context} do
+      file_content = "test file contentt"
+      tmp_dir = System.tmp_dir!()
+      source_path = Path.join(tmp_dir, "test_upload_#{System.unique_integer([:positive])}.txt")
+      blob_name = build(:blob_name)
+
+      try do
+        File.write!(source_path, file_content)
+
+        blob_properties = %{
+          content_type: "application/octet-stream",
+          meta: [
+            {"x-frame-options", "DENY"},
+            {"content-security-policy", "default-src 'self'"},
+            {"enable-cors-protection", "true"}
+          ]
+        }
+
+        assert {:ok, %{status: 201}} =
+                 Blob.upload_file(container_context, source_path, blob_name, blob_properties)
+
+        blob = container_context |> Blob.new(blob_name)
+        assert {:ok, %{status: 200, body: ^file_content}} = blob |> Blob.get_blob()
+
+        assert {:ok, %{status: 200, properties: properties}} =
+                 blob |> Blob.get_blob_properties()
+
+        assert properties.content_type == "application/octet-stream"
+        assert {"x-frame-options", "DENY"} in properties.meta
+        assert {"content-security-policy", "default-src 'self'"} in properties.meta
+        assert {"enable-cors-protection", "true"} in properties.meta
+      after
+        if File.exists?(source_path), do: File.rm!(source_path)
+      end
+    end
+  end
 end

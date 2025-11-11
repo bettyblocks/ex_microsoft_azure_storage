@@ -4,12 +4,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: "24.0"
+          otp-version: "24.3"
           elixir-version: "1.12.0"
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             deps
@@ -18,7 +18,7 @@ jobs:
           key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
             ${{ runner.os }}-mix-
-      - run: docker-compose up -d
+      - run: docker compose up -d
       - run: mix deps.get
       - run: mix credo --strict
       - run: mix dialyzer

@@ -42,8 +42,11 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
     :access_tier_change_time,
     :rehydrate_priority,
     :last_access_time,
-    :blob_sealed
+    :blob_sealed,
+    :meta
   ]
+
+  @type meta_opts :: [{binary, binary}]
 
   @type t() :: %__MODULE__{
           last_modified: DateTime.t(),
@@ -81,7 +84,8 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
           access_tier_change_time: DateTime.t(),
           rehydrate_priority: String.t(),
           last_access_time: DateTime.t(),
-          blob_sealed: boolean()
+          blob_sealed: boolean(),
+          meta: meta_opts()
         }
 
   @type headers() :: [{String.t(), String.t()}]
@@ -123,7 +127,8 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
     {"x-ms-access-tier-change-time", :access_tier_change_time, :rfc1123_datetime},
     {"x-ms-rehydrate-priority", :rehydrate_priority, :string},
     {"x-ms-last-access-time", :last_access_time, :rfc1123_datetime},
-    {"x-ms-blob-sealed", :blob_sealed, :boolean}
+    {"x-ms-blob-sealed", :blob_sealed, :boolean},
+    {"x-ms-meta", :meta, :meta_opts}
   ]
 
   @doc """
@@ -131,14 +136,21 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
   """
   @spec serialise(properties :: __MODULE__.t()) :: headers()
   def serialise(%__MODULE__{} = properties) do
+    meta_headers =
+      properties |> Map.get(:meta, []) |> Enum.map(fn {k, v} -> {"x-ms-meta-#{k}", v} end)
+
     @headers
-    |> Enum.reduce([], fn {header, key, type}, acc ->
-      case Map.get(properties, key) do
-        nil ->
+    |> Enum.reduce(meta_headers, fn {header, key, type}, acc ->
+      case {key, Map.get(properties, key)} do
+        {_, nil} ->
           acc
 
-        value ->
-          [{header, encode(value, type)} | acc]
+        {:meta, _} ->
+          acc
+
+        {_, value} ->
+          encoded_value = encode(value, type)
+          [{header, encoded_value} | acc]
       end
     end)
   end
@@ -148,12 +160,22 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
   """
   @spec deserialise(headers :: headers()) :: __MODULE__.t()
   def deserialise(headers) do
+    meta_headers =
+      headers
+      |> Enum.filter(fn {k, _} -> k |> String.starts_with?("x-ms-meta-") end)
+      |> Enum.into([], fn {k, v} -> {k |> String.replace("x-ms-meta-", ""), v} end)
+
     attrs =
       @headers
-      |> Enum.reduce(%{}, fn
-        {header, key, type}, acc ->
-          value = headers |> header(header) |> decode(type)
-          acc |> Map.put(key, value)
+      |> Enum.reduce(%{}, fn {header, key, type}, acc ->
+        case key do
+          :meta ->
+            Map.put(acc, :meta, meta_headers)
+
+          _ ->
+            value = headers |> header(header) |> decode(type)
+            Map.put(acc, key, value)
+        end
       end)
 
     struct!(__MODULE__, attrs)
