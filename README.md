@@ -1,4 +1,3 @@
-
 Based off https://github.com/joeapearson/elixir-azure because of outdated dependencies 
 
 # ExMicrosoftAzureStorage
