@@ -6,6 +6,9 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
   import ExMicrosoftAzureStorage.Storage.DateTimeUtils
   import ExMicrosoftAzureStorage.Storage.Utilities
 
+  # This struct mirrors the full set of Azure blob property headers, so the
+  # field count legitimately exceeds Credo's default limit.
+  # credo:disable-for-next-line Credo.Check.Warning.StructFieldAmount
   defstruct [
     :last_modified,
     :creation_time,
