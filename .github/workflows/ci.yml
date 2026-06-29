@@ -6,6 +6,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
+        id: setup-beam
         with:
           otp-version: "28.5"
           elixir-version: "1.19.5"
@@ -15,9 +16,9 @@ jobs:
             deps
             _build
             priv/plts
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-mix-otp${{ steps.setup-beam.outputs.otp-version }}-elixir${{ steps.setup-beam.outputs.elixir-version }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-mix-
+            ${{ runner.os }}-mix-otp${{ steps.setup-beam.outputs.otp-version }}-elixir${{ steps.setup-beam.outputs.elixir-version }}-
       - run: docker compose up -d
       - run: mix deps.get
       - run: mix credo --strict
