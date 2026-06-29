@@ -67,16 +67,11 @@ defmodule ExMicrosoftAzureStorage.Storage do
         :table_service -> 10_002
       end
 
-    URI.to_string(%URI{
-      scheme: default_endpoints_protocol(context),
-      host: host,
-      port: port,
-      path: "/" <> context.account_name
-    })
+    "#{default_endpoints_protocol(context)}://#{host}:#{port}/#{context.account_name}"
   end
 
   def endpoint_url(%__MODULE__{} = context, service) when is_atom(service),
-    do: URI.to_string(%URI{scheme: default_endpoints_protocol(context), host: endpoint_hostname(context, service)})
+    do: "#{default_endpoints_protocol(context)}://#{endpoint_hostname(context, service)}"
 
   def endpoint_hostname(%__MODULE__{} = context, service) when is_atom(service),
     do: "#{context.account_name}.#{@endpoint_names[service]}.#{context.endpoint_suffix}"

@@ -214,7 +214,7 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
   defp trim_uri_for_aad_request(uri) when is_binary(uri) do
     %URI{host: host, scheme: scheme} = URI.parse(uri)
 
-    URI.to_string(%URI{host: host, scheme: scheme})
+    "#{scheme}://#{host}"
   end
 
   def sign_and_call(%{storage_context: %Storage{} = storage_context} = request, service)
