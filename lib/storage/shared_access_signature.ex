@@ -100,7 +100,7 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignature do
     %{v | canonicalized_resource: resource_name}
   end
 
-  def as_time(t), do: t |> Timex.format!("{YYYY}-{0M}-{0D}T{0h24}:{0m}:{0s}Z")
+  def as_time(t), do: Calendar.strftime(t, "%Y-%m-%dT%H:%M:%SZ")
 
   def service_version(%__MODULE__{} = v, service_version),
     do: %{v | service_version: service_version}

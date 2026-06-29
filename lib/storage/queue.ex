@@ -3,7 +3,6 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
   Queue
   """
 
-  use Timex
   import SweetXml
   import ExMicrosoftAzureStorage.Storage.RequestBuilder
   alias __MODULE__.Responses

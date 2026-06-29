@@ -36,10 +36,8 @@ defmodule ExMicrosoftAzureStorage.MixProject do
       {:ex_machina, ">= 0.0.0", only: [:dev, :test]},
       {:hackney, "~> 1.17"},
       {:jason, "~> 1.2", optional: true},
-      {:poison, ">= 1.0.0", optional: true},
       {:sweet_xml, "~> 0.7"},
       {:tesla, "~> 1.4"},
-      {:timex, "~> 3.7"},
       {:xml_builder, "~> 2.2"}
     ]
   end
