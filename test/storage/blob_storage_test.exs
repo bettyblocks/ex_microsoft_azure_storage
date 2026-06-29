@@ -3,12 +3,12 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorageTest do
 
   use ExUnit.Case, async: true
 
-  @moduletag :external
-
   import ExMicrosoftAzureStorage.Factory
 
   alias ExMicrosoftAzureStorage.Storage.BlobStorage
   alias ExMicrosoftAzureStorage.Storage.BlobStorage.ServiceProperties
+
+  @moduletag :external
 
   setup do
     storage_context = build(:storage_context)
@@ -19,7 +19,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorageTest do
   describe "get_blob_service_stats" do
     test "gets blob service stats", %{storage_context: storage_context} do
       assert {:ok, %{geo_replication: %{last_sync_time: last_sync_time, status: "live"}}} =
-               storage_context |> BlobStorage.get_blob_service_stats()
+               BlobStorage.get_blob_service_stats(storage_context)
 
       assert last_sync_time
     end
@@ -28,7 +28,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorageTest do
   describe "get_blob_service_properties" do
     test "gets blob service properties", %{storage_context: storage_context} do
       assert {:ok, %{service_properties: %ServiceProperties{}}} =
-               storage_context |> BlobStorage.get_blob_service_properties()
+               BlobStorage.get_blob_service_properties(storage_context)
     end
   end
 
@@ -42,18 +42,16 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorageTest do
         allowed_headers: [""]
       }
 
-      cors_rule = rule |> ServiceProperties.CorsRule.to_struct()
+      cors_rule = ServiceProperties.CorsRule.to_struct(rule)
 
-      {:ok, %{service_properties: service_properties}} =
-        storage_context |> BlobStorage.get_blob_service_properties()
+      {:ok, %{service_properties: service_properties}} = BlobStorage.get_blob_service_properties(storage_context)
 
       service_properties = Map.put(service_properties, :cors_rules, [cors_rule])
 
-      storage_context
-      |> BlobStorage.set_blob_service_properties(service_properties)
+      BlobStorage.set_blob_service_properties(storage_context, service_properties)
 
       {:ok, %{service_properties: service_properties_after_update}} =
-        storage_context |> BlobStorage.get_blob_service_properties()
+        BlobStorage.get_blob_service_properties(storage_context)
 
       assert service_properties == service_properties_after_update
     end

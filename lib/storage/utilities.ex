@@ -17,15 +17,15 @@ defmodule ExMicrosoftAzureStorage.Storage.Utilities do
       iex> %{foo: [:a]} |> ExMicrosoftAzureStorage.Storage.Utilities.add_to(:foo, :b) |> ExMicrosoftAzureStorage.Storage.Utilities.add_to(:foo, :c)
       %{foo: [:c, :b, :a]}
   """
-  def add_to(v = %{}, key, value) when is_atom(key) and is_atom(value),
+  def add_to(%{} = v, key, value) when is_atom(key) and is_atom(value),
     do:
-      v
-      |> Map.update(
+      Map.update(
+        v,
         key,
         value,
         &case &1 do
           nil -> [value]
-          a -> [value | a] |> Enum.uniq()
+          a -> Enum.uniq([value | a])
         end
       )
 
@@ -41,12 +41,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Utilities do
       "rw"
   """
   def set_to_string(set, mapping) when is_list(set) and is_map(mapping),
-    do:
-      set
-      |> Enum.uniq()
-      |> Enum.map(&Map.get(mapping, &1))
-      |> Enum.filter(&(&1 != nil))
-      |> Enum.join("")
+    do: set |> Enum.uniq() |> Enum.map(&Map.get(mapping, &1)) |> Enum.filter(&(&1 != nil)) |> Enum.join("")
 
   @doc """
   Reverses a map
@@ -62,8 +57,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Utilities do
       iex> %{"r" => :read, "w" => :write} |> ExMicrosoftAzureStorage.Storage.Utilities.reverse_map()
       %{read: "r", write: "w"}
   """
-  def reverse_map(mapping),
-    do: mapping |> Enum.to_list() |> Enum.map(fn {k, v} -> {v, k} end) |> Map.new()
+  def reverse_map(mapping), do: mapping |> Enum.to_list() |> Map.new(fn {k, v} -> {v, k} end)
 
   @doc """
   Converts a string with shortcuts back into a list of atoms.
@@ -74,7 +68,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Utilities do
       [:read, :write]
   """
   def string_to_set(string, mapping) when is_binary(string) and is_map(mapping) do
-    reverse_mapping = mapping |> reverse_map()
+    reverse_mapping = reverse_map(mapping)
 
     string
     |> String.graphemes()

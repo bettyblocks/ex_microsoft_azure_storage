@@ -3,27 +3,26 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignatureTest do
 
   use ExUnit.Case, async: true
 
-  @moduletag :external
-
   import ExMicrosoftAzureStorage.Factory
 
+  alias ExMicrosoftAzureStorage.Storage.Blob
+  alias ExMicrosoftAzureStorage.Storage.Container
   alias ExMicrosoftAzureStorage.Storage.SharedAccessSignature, as: SAS
-  alias ExMicrosoftAzureStorage.Storage.{Blob, Container}
+
+  @moduletag :external
 
   @blob_name "my_blob"
   @blob_data "blob_data"
 
   setup_all do
     storage_context = build(:storage_context)
-    container_context = storage_context |> Container.new("sas-test")
+    container_context = Container.new(storage_context, "sas-test")
 
     {:ok, _response} = Container.ensure_container(container_context)
 
-    blob = container_context |> Blob.new(@blob_name)
+    blob = Blob.new(container_context, @blob_name)
 
-    {:ok, %{status: 201}} =
-      blob
-      |> Blob.put_blob(@blob_data)
+    {:ok, %{status: 201}} = Blob.put_blob(blob, @blob_data)
 
     %{storage_context: storage_context, container_context: container_context, blob: blob}
   end

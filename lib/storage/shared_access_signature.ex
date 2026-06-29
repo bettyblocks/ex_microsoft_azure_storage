@@ -3,8 +3,9 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignature do
   SharedAccessSignature
   """
 
-  alias ExMicrosoftAzureStorage.Storage
   import ExMicrosoftAzureStorage.Storage.Utilities, only: [add_to: 3, set_to_string: 2]
+
+  alias ExMicrosoftAzureStorage.Storage
 
   # https://docs.microsoft.com/en-us/rest/api/storageservices/delegating-access-with-a-shared-access-signature
   # https://docs.microsoft.com/en-us/azure/storage/common/storage-dotnet-shared-access-signature-part-1
@@ -31,38 +32,30 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignature do
 
   def new, do: %__MODULE__{}
 
-  def for_storage_account(%__MODULE__{target_scope: nil} = v),
-    do: v |> Map.put(:target_scope, :account)
+  def for_storage_account(%__MODULE__{target_scope: nil} = v), do: Map.put(v, :target_scope, :account)
 
-  def for_blob_service(%__MODULE__{target_scope: nil} = v), do: v |> Map.put(:target_scope, :blob)
+  def for_blob_service(%__MODULE__{target_scope: nil} = v), do: Map.put(v, :target_scope, :blob)
 
-  def for_table_service(%__MODULE__{target_scope: nil} = v),
-    do: v |> Map.put(:target_scope, :table)
+  def for_table_service(%__MODULE__{target_scope: nil} = v), do: Map.put(v, :target_scope, :table)
 
-  def for_queue_service(%__MODULE__{target_scope: nil} = v),
-    do: v |> Map.put(:target_scope, :queue)
+  def for_queue_service(%__MODULE__{target_scope: nil} = v), do: Map.put(v, :target_scope, :queue)
 
   # https://docs.microsoft.com/en-us/rest/api/storageservices/constructing-an-account-sas#specifying-account-sas-parameters
   @services_map %{blob: "b", queue: "q", table: "t", file: "f"}
-  def add_service_blob(%__MODULE__{target_scope: :account} = v), do: v |> add_to(:services, :blob)
+  def add_service_blob(%__MODULE__{target_scope: :account} = v), do: add_to(v, :services, :blob)
 
-  def add_service_queue(%__MODULE__{target_scope: :account} = v),
-    do: v |> add_to(:services, :queue)
+  def add_service_queue(%__MODULE__{target_scope: :account} = v), do: add_to(v, :services, :queue)
 
-  def add_service_table(%__MODULE__{target_scope: :account} = v),
-    do: v |> add_to(:services, :table)
+  def add_service_table(%__MODULE__{target_scope: :account} = v), do: add_to(v, :services, :table)
 
-  def add_service_file(%__MODULE__{target_scope: :account} = v), do: v |> add_to(:services, :file)
+  def add_service_file(%__MODULE__{target_scope: :account} = v), do: add_to(v, :services, :file)
 
   @resource_types_map %{service: "s", object: "o", container: "c"}
-  def add_resource_type_service(%__MODULE__{target_scope: :account} = v),
-    do: v |> add_to(:resource_type, :service)
+  def add_resource_type_service(%__MODULE__{target_scope: :account} = v), do: add_to(v, :resource_type, :service)
 
-  def add_resource_type_container(%__MODULE__{target_scope: :account} = v),
-    do: v |> add_to(:resource_type, :container)
+  def add_resource_type_container(%__MODULE__{target_scope: :account} = v), do: add_to(v, :resource_type, :container)
 
-  def add_resource_type_object(%__MODULE__{target_scope: :account} = v),
-    do: v |> add_to(:resource_type, :object)
+  def add_resource_type_object(%__MODULE__{target_scope: :account} = v), do: add_to(v, :resource_type, :object)
 
   @resource_map %{
     # https://docs.microsoft.com/en-us/rest/api/storageservices/constructing-a-service-sas#specifying-the-signed-resource-blob-service-only
@@ -73,9 +66,9 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignature do
     file: "f"
   }
 
-  def add_resource_blob_container(%__MODULE__{} = v), do: v |> add_to(:resource, :container)
+  def add_resource_blob_container(%__MODULE__{} = v), do: add_to(v, :resource, :container)
 
-  def add_resource_blob_blob(%__MODULE__{} = v), do: v |> add_to(:resource, :blob)
+  def add_resource_blob_blob(%__MODULE__{} = v), do: add_to(v, :resource, :blob)
 
   @permissions_map %{
     read: "r",
@@ -102,8 +95,7 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignature do
 
   def as_time(t), do: Calendar.strftime(t, "%Y-%m-%dT%H:%M:%SZ")
 
-  def service_version(%__MODULE__{} = v, service_version),
-    do: %{v | service_version: service_version}
+  def service_version(%__MODULE__{} = v, service_version), do: %{v | service_version: service_version}
 
   def start_time(%__MODULE__{} = v, start_time), do: %{v | start_time: start_time}
   def expiry_time(%__MODULE__{} = v, expiry_time), do: %{v | expiry_time: expiry_time}
@@ -113,28 +105,25 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignature do
 
   def cache_control(%__MODULE__{} = v, cache_control), do: %{v | cache_control: cache_control}
 
-  def content_disposition(%__MODULE__{} = v, content_disposition),
-    do: %{v | content_disposition: content_disposition}
+  def content_disposition(%__MODULE__{} = v, content_disposition), do: %{v | content_disposition: content_disposition}
 
-  def content_encoding(%__MODULE__{} = v, content_encoding),
-    do: %{v | content_encoding: content_encoding}
+  def content_encoding(%__MODULE__{} = v, content_encoding), do: %{v | content_encoding: content_encoding}
 
-  def content_language(%__MODULE__{} = v, content_language),
-    do: %{v | content_language: content_language}
+  def content_language(%__MODULE__{} = v, content_language), do: %{v | content_language: content_language}
 
   def content_type(%__MODULE__{} = v, content_type), do: %{v | content_type: content_type}
 
   def encode({:service_version, value}), do: {"sv", value}
-  def encode({:start_time, value}), do: {"st", value |> as_time()}
+  def encode({:start_time, value}), do: {"st", as_time(value)}
 
-  def encode({:expiry_time, value}), do: {"se", value |> as_time()}
+  def encode({:expiry_time, value}), do: {"se", as_time(value)}
   def encode({:canonicalized_resource, value}), do: {"cr", value}
-  def encode({:resource, value}), do: {"sr", value |> set_to_string(@resource_map)}
+  def encode({:resource, value}), do: {"sr", set_to_string(value, @resource_map)}
   def encode({:ip_range, value}), do: {"sip", value}
   def encode({:protocol, value}), do: {"spr", value}
-  def encode({:services, value}), do: {"ss", value |> set_to_string(@services_map)}
-  def encode({:resource_type, value}), do: {"srt", value |> set_to_string(@resource_types_map)}
-  def encode({:permissions, value}), do: {"sp", value |> set_to_string(@permissions_map)}
+  def encode({:services, value}), do: {"ss", set_to_string(value, @services_map)}
+  def encode({:resource_type, value}), do: {"srt", set_to_string(value, @resource_types_map)}
+  def encode({:permissions, value}), do: {"sp", set_to_string(value, @permissions_map)}
   def encode({:cache_control, value}), do: {"rscc", value}
   def encode({:content_disposition, value}), do: {"rscd", value}
   def encode({:content_encoding, value}), do: {"rsce", value}
@@ -159,61 +148,63 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignature do
   #              rscl + "\n" +
   #              rsct
   defp string_to_sign(values, _account_name, :blob) do
-    [
-      # permissions
-      values |> Map.get("sp", ""),
-      # start date
-      values |> Map.get("st", ""),
-      # expiry date
-      values |> Map.get("se", ""),
-      # canonicalized resource
-      values |> Map.get("cr", ""),
-      # identifier
-      "",
-      # IP address
-      values |> Map.get("sip", ""),
-      # Protocol
-      values |> Map.get("spr", ""),
-      # Version
-      values |> Map.get("sv", ""),
-      # resource
-      values |> Map.get("sr"),
-      # snapshottime
-      "",
-      # rscc - Cache-Control
-      values |> Map.get("rscc", ""),
-      # rscd - Content-Disposition
-      values |> Map.get("rscd", ""),
-      # rsce - Content-Encoding
-      values |> Map.get("rsce", ""),
-      # rscl - Content-Language
-      values |> Map.get("rscl", ""),
-      # rsct - Content-Type
-      values |> Map.get("rsct", "")
-    ]
-    |> Enum.join("\n")
+    Enum.join(
+      [
+        Map.get(values, "sp", ""),
+        Map.get(values, "st", ""),
+        Map.get(values, "se", ""),
+        Map.get(values, "cr", ""),
+        "",
+        Map.get(values, "sip", ""),
+        Map.get(values, "spr", ""),
+        Map.get(values, "sv", ""),
+        Map.get(values, "sr"),
+        "",
+        Map.get(values, "rscc", ""),
+        Map.get(values, "rscd", ""),
+        Map.get(values, "rsce", ""),
+        Map.get(values, "rscl", ""),
+        Map.get(values, "rsct", "")
+      ],
+      "\n"
+    )
+
+    # permissions
+    # start date
+    # expiry date
+    # canonicalized resource
+    # identifier
+    # IP address
+    # Protocol
+    # Version
+    # resource
+    # snapshottime
+    # rscc - Cache-Control
+    # rscd - Content-Disposition
+    # rsce - Content-Encoding
+    # rscl - Content-Language
+    # rsct - Content-Type
   end
 
   defp string_to_sign(values, account_name, _) do
-    [
-      account_name,
-      values |> Map.get("sp", ""),
-      values |> Map.get("ss", ""),
-      values |> Map.get("srt", ""),
-      values |> Map.get("st", ""),
-      values |> Map.get("se", ""),
-      values |> Map.get("sip", ""),
-      values |> Map.get("spr", ""),
-      values |> Map.get("sv", ""),
-      ""
-    ]
-    |> Enum.join("\n")
+    Enum.join(
+      [
+        account_name,
+        Map.get(values, "sp", ""),
+        Map.get(values, "ss", ""),
+        Map.get(values, "srt", ""),
+        Map.get(values, "st", ""),
+        Map.get(values, "se", ""),
+        Map.get(values, "sip", ""),
+        Map.get(values, "spr", ""),
+        Map.get(values, "sv", ""),
+        ""
+      ],
+      "\n"
+    )
   end
 
-  def sign(
-        %__MODULE__{target_scope: target_scope} = sas,
-        %Storage{account_name: account_name, account_key: account_key}
-      )
+  def sign(%__MODULE__{target_scope: target_scope} = sas, %Storage{account_name: account_name, account_key: account_key})
       when is_atom(target_scope) and target_scope != nil do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/service-sas-examples
     values =
@@ -227,12 +218,13 @@ defmodule ExMicrosoftAzureStorage.Storage.SharedAccessSignature do
     string_to_sign = string_to_sign(values, account_name, target_scope)
 
     signature =
-      Storage.Crypto.hmac(:sha256, account_key |> Base.decode64!(), string_to_sign)
+      :sha256
+      |> Storage.Crypto.hmac(Base.decode64!(account_key), string_to_sign)
       |> Base.encode64()
 
     values
     |> Map.put("sig", signature)
-    |> Map.drop(["cr"])
+    |> Map.delete("cr")
     |> URI.encode_query()
   end
 end

@@ -3,21 +3,21 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
   Container
   """
 
-  import SweetXml
   import ExMicrosoftAzureStorage.Storage.RequestBuilder
   import ExMicrosoftAzureStorage.Storage.Utilities, only: [to_bool: 1]
+  import SweetXml
 
   alias ExMicrosoftAzureStorage.Storage
-  alias ExMicrosoftAzureStorage.Storage.{BlobPolicy, DateTimeUtils}
+  alias ExMicrosoftAzureStorage.Storage.BlobPolicy
+  alias ExMicrosoftAzureStorage.Storage.DateTimeUtils
 
   @type t :: %__MODULE__{container_name: String.t(), storage_context: map}
 
   @enforce_keys [:storage_context, :container_name]
   defstruct [:storage_context, :container_name]
 
-  def new(%Storage{} = storage_context, container_name)
-      when is_binary(container_name),
-      do: %__MODULE__{storage_context: storage_context, container_name: container_name}
+  def new(%Storage{} = storage_context, container_name) when is_binary(container_name),
+    do: %__MODULE__{storage_context: storage_context, container_name: container_name}
 
   defmodule Responses do
     @moduledoc false
@@ -30,15 +30,12 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
           name: ~x"./Name/text()"s,
           properties: [
             ~x"./Properties",
-            last_modified:
-              ~x"./Last-Modified/text()"s
-              |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
+            last_modified: transform_by(~x"./Last-Modified/text()"s, &DateTimeUtils.date_parse_rfc1123/1),
             e_tag: ~x"./Etag/text()"s,
             lease_status: ~x"./LeaseStatus/text()"s,
             lease_state: ~x"./LeaseState/text()"s,
-            has_immutability_policy:
-              ~x"./HasImmutabilityPolicy/text()"s |> transform_by(&to_bool/1),
-            has_legal_hold: ~x"./HasLegalHold/text()"s |> transform_by(&to_bool/1)
+            has_immutability_policy: transform_by(~x"./HasImmutabilityPolicy/text()"s, &to_bool/1),
+            has_legal_hold: transform_by(~x"./HasLegalHold/text()"s, &to_bool/1)
           ]
         ]
       ]
@@ -50,16 +47,11 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
         blobs: [
           ~x"/EnumerationResults/Blobs/Blob"l,
           name: ~x"./Name/text()"s,
-          tags: [
-            ~x"./Tags/TagSet/Tag"l,
-            key: ~x"./Key/text()"s,
-            value: ~x"./Value/text()"s
-          ],
+          tags: [~x"./Tags/TagSet/Tag"l, key: ~x"./Key/text()"s, value: ~x"./Value/text()"s],
           properties: [
             ~x"./Properties",
             etag: ~x"./Etag/text()"s,
-            last_modified:
-              ~x"./Last-Modified/text()"s |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
+            last_modified: transform_by(~x"./Last-Modified/text()"s, &DateTimeUtils.date_parse_rfc1123/1),
             content_length: ~x"./Content-Length/text()"i,
             content_type: ~x"./Content-Type/text()"s,
             content_encoding: ~x"./Content-Encoding/text()"s,
@@ -69,10 +61,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
             cache_control: ~x"./Cache-Control/text()"s,
             blob_type: ~x"./BlobType/text()"s,
             access_tier: ~x"./AccessTier/text()"s,
-            access_tier_inferred: ~x"./AccessTierInferred/text()"s |> transform_by(&to_bool/1),
+            access_tier_inferred: transform_by(~x"./AccessTierInferred/text()"s, &to_bool/1),
             lease_status: ~x"./LeaseStatus/text()"s,
             lease_state: ~x"./LeaseState/text()"s,
-            server_encrypted: ~x"./ServerEncrypted/text()"s |> transform_by(&to_bool/1)
+            server_encrypted: transform_by(~x"./ServerEncrypted/text()"s, &to_bool/1)
           ]
         ]
       ]
@@ -90,12 +82,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok,
-         response
-         |> create_success_response(xml_body_parser: &Responses.list_containers_response/0)}
+        {:ok, create_success_response(response, xml_body_parser: &Responses.list_containers_response/0)}
     end
   end
 
@@ -111,12 +101,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 201} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -131,10 +119,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
     end
   end
 
-  def get_container_properties(%__MODULE__{
-        storage_context: context,
-        container_name: container_name
-      }) do
+  def get_container_properties(%__MODULE__{storage_context: context, container_name: container_name}) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-container-properties
     response =
       context
@@ -146,12 +131,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -169,12 +152,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -192,24 +173,21 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
         {:ok,
          response
          |> create_success_response()
-         |> Map.put(:policies, response.body |> process_body([], &BlobPolicy.deserialize/1))}
+         |> Map.put(:policies, process_body(response.body, [], &BlobPolicy.deserialize/1))}
     end
   end
 
-  def set_container_acl_public_access_off(%__MODULE__{} = container),
-    do: container |> set_container_acl(:off)
+  def set_container_acl_public_access_off(%__MODULE__{} = container), do: set_container_acl(container, :off)
 
-  def set_container_acl_public_access_blob(%__MODULE__{} = container),
-    do: container |> set_container_acl(:blob)
+  def set_container_acl_public_access_blob(%__MODULE__{} = container), do: set_container_acl(container, :blob)
 
-  def set_container_acl_public_access_container(%__MODULE__{} = container),
-    do: container |> set_container_acl(:container)
+  def set_container_acl_public_access_container(%__MODULE__{} = container), do: set_container_acl(container, :container)
 
   defp container_access_level_to_string(:off), do: nil
   defp container_access_level_to_string(:blob), do: "blob"
@@ -219,11 +197,8 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
   def parse_access_level("blob"), do: :blob
   def parse_access_level("container"), do: :container
 
-  def set_container_acl(
-        %__MODULE__{storage_context: context, container_name: container_name},
-        access_level
-      )
-      when access_level |> is_atom() and access_level in [:off, :blob, :container] do
+  def set_container_acl(%__MODULE__{storage_context: context, container_name: container_name}, access_level)
+      when is_atom(access_level) and access_level in [:off, :blob, :container] do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl#remarks
 
     response =
@@ -242,20 +217,15 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
-  def set_container_acl(
-        %__MODULE__{storage_context: context, container_name: container_name},
-        access_policies
-      )
-      when access_policies |> is_list() do
+  def set_container_acl(%__MODULE__{storage_context: context, container_name: container_name}, access_policies)
+      when is_list(access_policies) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-container-acl#remarks
 
     response =
@@ -266,17 +236,15 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
       |> add_param(:query, :restype, "container")
       |> add_param(:query, :comp, "acl")
       |> add_header("Content-Type", "application/xml")
-      |> body(access_policies |> BlobPolicy.serialize())
+      |> body(BlobPolicy.serialize(access_policies))
       |> sign_and_call(:blob_service)
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -292,25 +260,16 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 202} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
   def list_blobs(
         %__MODULE__{storage_context: context, container_name: container_name},
-        opts \\ [
-          prefix: nil,
-          delimiter: nil,
-          marker: nil,
-          maxresults: nil,
-          timeout: nil,
-          include: nil
-        ]
+        opts \\ [prefix: nil, delimiter: nil, marker: nil, maxresults: nil, timeout: nil, include: nil]
       ) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/list-blobs
 
@@ -331,16 +290,14 @@ defmodule ExMicrosoftAzureStorage.Storage.Container do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok,
-         response
-         |> create_success_response(xml_body_parser: &Responses.list_blobs_response/0)}
+        {:ok, create_success_response(response, xml_body_parser: &Responses.list_blobs_response/0)}
     end
   end
 
   defp process_body(nil, default_value, _process_fn), do: default_value
   defp process_body("", default_value, _process_fn), do: default_value
-  defp process_body(body, _default_value, process_fn), do: body |> process_fn.()
+  defp process_body(body, _default_value, process_fn), do: process_fn.(body)
 end

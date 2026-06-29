@@ -22,7 +22,7 @@ defmodule ExMicrosoftAzureStorage.Storage.ConnectionString do
   defp parse_connection_string_item(item) do
     # The value part of the item can contain `=` (esp the account key which is base64-encoded), so
     # `parts: 2` is essential.
-    [k, v] = item |> String.split("=", parts: 2)
+    [k, v] = String.split(item, "=", parts: 2)
 
     {key_for(k), v}
   end

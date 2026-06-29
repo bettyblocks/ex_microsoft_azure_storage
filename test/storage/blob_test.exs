@@ -3,11 +3,13 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
 
   use ExUnit.Case, async: true
 
-  @moduletag :external
-
-  alias ExMicrosoftAzureStorage.Storage.{Blob, BlobProperties, Container}
-
   import ExMicrosoftAzureStorage.Factory
+
+  alias ExMicrosoftAzureStorage.Storage.Blob
+  alias ExMicrosoftAzureStorage.Storage.BlobProperties
+  alias ExMicrosoftAzureStorage.Storage.Container
+
+  @moduletag :external
 
   defp header(headers, key) do
     case List.keyfind(headers, key, 0) do
@@ -18,7 +20,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
 
   setup do
     storage_context = build(:storage_context)
-    container_context = storage_context |> Container.new("blob-test")
+    container_context = Container.new(storage_context, "blob-test")
 
     Container.delete_container(container_context)
 
@@ -31,31 +33,30 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
     setup %{container_context: container_context} do
       blob_name = build(:blob_name)
       blob_data = build(:blob_data)
-      blob = container_context |> Blob.new(blob_name)
+      blob = Blob.new(container_context, blob_name)
 
-      blob |> Blob.delete_blob()
-      {:ok, %{status: 201}} = blob |> Blob.put_blob(blob_data)
+      Blob.delete_blob(blob)
+      {:ok, %{status: 201}} = Blob.put_blob(blob, blob_data)
 
       %{blob: blob, container_context: container_context}
     end
 
     test "gets blob properties", %{blob: blob} do
-      assert {:ok, %{status: 200, properties: %BlobProperties{}}} =
-               blob |> Blob.get_blob_properties()
+      assert {:ok, %{status: 200, properties: %BlobProperties{}}} = Blob.get_blob_properties(blob)
     end
 
     test "error when blob not found", %{container_context: container_context} do
       blob_name = build(:blob_name)
-      blob = container_context |> Blob.new(blob_name)
+      blob = Blob.new(container_context, blob_name)
 
-      assert {:error, %{status: 404}} = blob |> Blob.get_blob_properties()
+      assert {:error, %{status: 404}} = Blob.get_blob_properties(blob)
     end
 
     test "set blob properties", %{blob: blob} do
       content_type = build(:content_type)
       content_md5 = build(:content_md5)
 
-      {:ok, %{status: 200, properties: blob_properties}} = blob |> Blob.get_blob_properties()
+      {:ok, %{status: 200, properties: blob_properties}} = Blob.get_blob_properties(blob)
 
       refute blob_properties.content_type == content_type
 
@@ -64,10 +65,9 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
         |> Map.put(:content_type, content_type)
         |> Map.put(:content_md5, content_md5)
 
-      assert {:ok, %{status: 200}} = blob |> Blob.set_blob_properties(blob_properties)
+      assert {:ok, %{status: 200}} = Blob.set_blob_properties(blob, blob_properties)
 
-      assert {:ok, %{status: 200, properties: blob_properties}} =
-               blob |> Blob.get_blob_properties()
+      assert {:ok, %{status: 200, properties: blob_properties}} = Blob.get_blob_properties(blob)
 
       assert blob_properties.content_type == content_type
       assert blob_properties.content_md5 == content_md5
@@ -78,13 +78,11 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
     test "puts a blob", %{container_context: container_context} do
       blob_name = "my_blob"
       blob_data = "my_blob_data"
-      blob = container_context |> Blob.new(blob_name)
+      blob = Blob.new(container_context, blob_name)
 
-      assert {:ok, %{status: 201}} =
-               blob
-               |> Blob.put_blob(blob_data)
+      assert {:ok, %{status: 201}} = Blob.put_blob(blob, blob_data)
 
-      assert {:ok, %{body: ^blob_data}} = blob |> Blob.get_blob()
+      assert {:ok, %{body: ^blob_data}} = Blob.get_blob(blob)
     end
   end
 
@@ -115,13 +113,11 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
 
       assert is_binary(source_content_type)
 
-      blob = container_context |> Blob.new(blob_name)
+      blob = Blob.new(container_context, blob_name)
 
-      assert {:ok, %{status: 201}} =
-               blob |> Blob.put_blob_from_url(url, content_type_workaround: true)
+      assert {:ok, %{status: 201}} = Blob.put_blob_from_url(blob, url, content_type_workaround: true)
 
-      assert {:ok, %{status: 200, body: destination_body, headers: destination_headers}} =
-               blob |> Blob.get_blob()
+      assert {:ok, %{status: 200, body: destination_body, headers: destination_headers}} = Blob.get_blob(blob)
 
       assert destination_body == expected_contents
 
@@ -142,8 +138,8 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
       container_context: container_context
     } do
       blob_data = "my_blob_data"
-      source = container_context |> Blob.new("source_blob")
-      target = container_context |> Blob.new("target_blob")
+      source = Blob.new(container_context, "source_blob")
+      target = Blob.new(container_context, "target_blob")
 
       assert {:ok, %{status: 201}} = Blob.put_blob(source, blob_data)
       assert {:ok, %{body: ^blob_data}} = Blob.get_blob(source)
@@ -175,11 +171,10 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobTest do
         assert {:ok, %{status: 201}} =
                  Blob.upload_file(container_context, source_path, blob_name, blob_properties)
 
-        blob = container_context |> Blob.new(blob_name)
-        assert {:ok, %{status: 200, body: ^file_content}} = blob |> Blob.get_blob()
+        blob = Blob.new(container_context, blob_name)
+        assert {:ok, %{status: 200, body: ^file_content}} = Blob.get_blob(blob)
 
-        assert {:ok, %{status: 200, properties: properties}} =
-                 blob |> Blob.get_blob_properties()
+        assert {:ok, %{status: 200, properties: properties}} = Blob.get_blob_properties(blob)
 
         assert properties.content_type == "application/octet-stream"
         assert {"x-frame-options", "DENY"} in properties.meta

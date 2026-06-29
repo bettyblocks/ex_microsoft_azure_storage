@@ -11,12 +11,12 @@ defmodule ExMicrosoftAzureStorage.Storage.DateTimeUtils do
   @rfc1123 "%a, %d %b %Y %H:%M:%S GMT"
 
   @spec utc_now() :: String.t()
-  def utc_now, do: DateTime.utc_now() |> to_string_rfc1123()
+  def utc_now, do: to_string_rfc1123(DateTime.utc_now())
 
   # "2019-02-05T16:43:10.4730000Z" |> ExMicrosoftAzureStorage.Storage.DateTimeUtils.date_parse_iso8601()
   @spec date_parse_iso8601(String.t()) :: DateTime.t()
   def date_parse_iso8601(date) do
-    {:ok, result, 0} = date |> DateTime.from_iso8601()
+    {:ok, result, 0} = DateTime.from_iso8601(date)
     result
   end
 
@@ -24,11 +24,7 @@ defmodule ExMicrosoftAzureStorage.Storage.DateTimeUtils do
   # where fffffff is the *seven*-digit millisecond representation.
   # &DateTime.to_iso8601/1 only generates six-digit millisecond
   @spec to_string_iso8601(DateTime.t()) :: String.t()
-  def to_string_iso8601(date_time),
-    do:
-      date_time
-      |> DateTime.to_iso8601()
-      |> String.replace_trailing("Z", "0Z")
+  def to_string_iso8601(date_time), do: date_time |> DateTime.to_iso8601() |> String.replace_trailing("Z", "0Z")
 
   # "Tue, 05 Feb 2019 16:58:12 GMT" |> ExMicrosoftAzureStorage.Storage.DateTimeUtils.date_parse_rfc1123()
   @spec date_parse_rfc1123(String.t()) :: DateTime.t()

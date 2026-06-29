@@ -4,6 +4,7 @@ defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
   """
 
   import ExMicrosoftAzureStorage.Storage.RequestBuilder
+
   alias ExMicrosoftAzureStorage.Storage.Container
 
   # "x-ms-lease-action" acquire/renew/change/release/break
@@ -31,7 +32,7 @@ defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: ^expected_status_code} ->
         {:ok,
@@ -44,12 +45,8 @@ defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
   defp pass_result_as_is(result, _response), do: result
 
   # AcquireLease TimeSpan? leaseTime, string proposedLeaseId
-  def container_lease_acquire(
-        %Container{} = container,
-        lease_duration,
-        proposed_lease_id \\ nil
-      )
-      when lease_duration |> is_integer() and (lease_duration == -1 or lease_duration in 15..60) do
+  def container_lease_acquire(%Container{} = container, lease_duration, proposed_lease_id \\ nil)
+      when is_integer(lease_duration) and (lease_duration == -1 or lease_duration in 15..60) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container
 
     fn_prepare_request = fn request ->
@@ -59,19 +56,11 @@ defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
       |> add_header("x-ms-proposed-lease-id", "#{proposed_lease_id}")
     end
 
-    container
-    |> container_lease_handler(
-      201,
-      fn_prepare_request,
-      &pass_result_as_is/2
-    )
+    container_lease_handler(container, 201, fn_prepare_request, &pass_result_as_is/2)
   end
 
   # RenewLease
-  def container_lease_renew(
-        %Container{} = container,
-        lease_id
-      ) do
+  def container_lease_renew(%Container{} = container, lease_id) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container
 
     fn_prepare_request = fn request ->
@@ -80,21 +69,12 @@ defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
       |> add_header("x-ms-lease-id", "#{lease_id}")
     end
 
-    container
-    |> container_lease_handler(
-      200,
-      fn_prepare_request,
-      &pass_result_as_is/2
-    )
+    container_lease_handler(container, 200, fn_prepare_request, &pass_result_as_is/2)
   end
 
   # BreakLease   TimeSpan? breakPeriod
-  def container_lease_break(
-        %Container{} = container,
-        lease_id,
-        break_period \\ -1
-      )
-      when break_period |> is_integer() and break_period in -1..60 do
+  def container_lease_break(%Container{} = container, lease_id, break_period \\ -1)
+      when is_integer(break_period) and break_period in -1..60 do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container
 
     fn_prepare_request = fn request ->
@@ -105,23 +85,14 @@ defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
     end
 
     fn_prepare_response = fn result, response ->
-      result
-      |> Map.put(:lease_time, response.headers["x-ms-lease-time"] |> Integer.parse() |> elem(0))
+      Map.put(result, :lease_time, response.headers["x-ms-lease-time"] |> Integer.parse() |> elem(0))
     end
 
-    container
-    |> container_lease_handler(
-      202,
-      fn_prepare_request,
-      fn_prepare_response
-    )
+    container_lease_handler(container, 202, fn_prepare_request, fn_prepare_response)
   end
 
   # ReleaseLease
-  def container_lease_release(
-        %Container{} = container,
-        lease_id
-      ) do
+  def container_lease_release(%Container{} = container, lease_id) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container#remarks
 
     fn_prepare_request = fn request ->
@@ -130,20 +101,11 @@ defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
       |> add_header("x-ms-lease-id", "#{lease_id}")
     end
 
-    container
-    |> container_lease_handler(
-      200,
-      fn_prepare_request,
-      &pass_result_as_is/2
-    )
+    container_lease_handler(container, 200, fn_prepare_request, &pass_result_as_is/2)
   end
 
   # ChangeLease string proposedLeaseId,
-  def container_lease_change(
-        %Container{} = container,
-        lease_id,
-        proposed_lease_id
-      ) do
+  def container_lease_change(%Container{} = container, lease_id, proposed_lease_id) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/lease-container#remarks
 
     fn_prepare_request = fn request ->
@@ -153,11 +115,6 @@ defmodule ExMicrosoftAzureStorage.Storage.ContainerLease do
       |> add_header("x-ms-proposed-lease-id", "#{proposed_lease_id}")
     end
 
-    container
-    |> container_lease_handler(
-      200,
-      fn_prepare_request,
-      &pass_result_as_is/2
-    )
+    container_lease_handler(container, 200, fn_prepare_request, &pass_result_as_is/2)
   end
 end

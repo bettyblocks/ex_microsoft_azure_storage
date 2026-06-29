@@ -3,34 +3,29 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobPolicy do
   BlobPolicy
   """
 
-  import SweetXml
   import ExMicrosoftAzureStorage.Storage.DateTimeUtils
   import ExMicrosoftAzureStorage.Storage.Utilities, only: [set_to_string: 2, string_to_set: 2]
+  import SweetXml
+
   require EEx
 
   defstruct [:id, :start, :expiry, :permission]
 
   @perms %{read: "r", write: "w", delete: "d", list: "l"}
 
-  def permission_serialize(permissions) when is_list(permissions),
-    do: permissions |> set_to_string(@perms)
+  def permission_serialize(permissions) when is_list(permissions), do: set_to_string(permissions, @perms)
 
-  def permission_parse(str) when is_binary(str),
-    do: str |> string_to_set(@perms)
+  def permission_parse(str) when is_binary(str), do: string_to_set(str, @perms)
 
   def deserialize(xml_body) do
     xml_body
     |> xpath(~x"/SignedIdentifiers/SignedIdentifier"l)
     |> Enum.map(fn node ->
       %__MODULE__{
-        id: node |> xpath(~x"./Id/text()"s),
-        start:
-          node |> xpath(~x"./AccessPolicy/Start/text()"s |> transform_by(&date_parse_iso8601/1)),
-        expiry:
-          node |> xpath(~x"./AccessPolicy/Expiry/text()"s |> transform_by(&date_parse_iso8601/1)),
-        permission:
-          node
-          |> xpath(~x"./AccessPolicy/Permission/text()"s |> transform_by(&permission_parse/1))
+        id: xpath(node, ~x"./Id/text()"s),
+        start: xpath(node, transform_by(~x"./AccessPolicy/Start/text()"s, &date_parse_iso8601/1)),
+        expiry: xpath(node, transform_by(~x"./AccessPolicy/Expiry/text()"s, &date_parse_iso8601/1)),
+        permission: xpath(node, transform_by(~x"./AccessPolicy/Permission/text()"s, &permission_parse/1))
       }
     end)
   end

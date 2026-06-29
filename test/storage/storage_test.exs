@@ -9,7 +9,7 @@ defmodule ExMicrosoftAzureStorage.StorageTest do
 
   describe "new" do
     test "can be created from an Azure connection string" do
-      storage = build(:connection_string) |> Storage.new()
+      storage = :connection_string |> build() |> Storage.new()
 
       assert is_binary(storage.account_name)
       assert is_binary(storage.account_key)
