@@ -11,21 +11,19 @@ defmodule ExMicrosoftAzureStorage.Storage.ApiVersion do
 
   defstruct [:year, :month, :day]
 
-  def parse(api_version) when is_binary(api_version),
-    do: api_version |> String.graphemes() |> parse_impl
+  def parse(api_version) when is_binary(api_version), do: api_version |> String.graphemes() |> parse_impl()
 
   defp parse_impl([y3, y2, y1, y0, "-", m1, m0, "-", d1, d0]),
     do: %__MODULE__{
-      year: (y3 <> y2 <> y1 <> y0) |> String.to_integer(),
-      month: (m1 <> m0) |> String.to_integer(),
-      day: (d1 <> d0) |> String.to_integer()
+      year: String.to_integer(y3 <> y2 <> y1 <> y0),
+      month: String.to_integer(m1 <> m0),
+      day: String.to_integer(d1 <> d0)
     }
 
   defp two_digits(i) when is_integer(i) and 1 <= i and i < 10, do: "0#{i}"
   defp two_digits(i) when is_integer(i) and 10 <= i and i < 32, do: "#{i}"
 
-  def to_string(%__MODULE__{year: year, month: month, day: day}),
-    do: "#{year}-#{month |> two_digits()}-#{day |> two_digits()}"
+  def to_string(%__MODULE__{year: year, month: month, day: day}), do: "#{year}-#{two_digits(month)}-#{two_digits(day)}"
 
   def to_date(%__MODULE__{year: year, month: month, day: day}) do
     with {:ok, result} <- Date.new(year, month, day, Calendar.ISO) do
@@ -40,6 +38,5 @@ defmodule ExMicrosoftAzureStorage.Storage.ApiVersion do
   def compare(%__MODULE__{day: a}, %__MODULE__{day: b}) when a < b, do: :older
   def compare(%__MODULE__{day: a}, %__MODULE__{day: b}) when a > b, do: :newer
 
-  def compare(%__MODULE__{year: y, month: m, day: d}, %__MODULE__{year: y, month: m, day: d}),
-    do: :equal
+  def compare(%__MODULE__{year: y, month: m, day: d}, %__MODULE__{year: y, month: m, day: d}), do: :equal
 end

@@ -77,7 +77,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobPropertiesTest do
         tag_count: nil
       }
 
-      assert ^expected = headers |> BlobProperties.deserialise()
+      assert ^expected = BlobProperties.deserialise(headers)
     end
   end
 
@@ -102,7 +102,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobPropertiesTest do
         {"x-ms-meta-enable-cors-protection", "true"}
       ]
 
-      assert ^expected = properties |> BlobProperties.serialise()
+      assert ^expected = BlobProperties.serialise(properties)
     end
   end
 end

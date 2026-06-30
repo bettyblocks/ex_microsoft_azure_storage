@@ -3,16 +3,17 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
   BlobStorage
   """
 
-  import SweetXml
   import ExMicrosoftAzureStorage.Storage.RequestBuilder
   import ExMicrosoftAzureStorage.Storage.Utilities, only: [to_bool: 1]
+  import SweetXml
 
   alias __MODULE__.ServiceProperties
   alias ExMicrosoftAzureStorage.Storage
+  alias ExMicrosoftAzureStorage.Storage.RequestBuilder
 
   defmodule Responses do
     @moduledoc false
-    import ExMicrosoftAzureStorage.Storage.RequestBuilder
+    import RequestBuilder
 
     def get_blob_service_stats_response do
       [
@@ -29,53 +30,49 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
         logging: [
           ~x"/StorageServiceProperties/Logging",
           version: ~x"./Version/text()"s,
-          delete: ~x"./Delete/text()"s |> transform_by(&to_bool/1),
-          read: ~x"./Read/text()"s |> transform_by(&to_bool/1),
-          write: ~x"./Write/text()"s |> transform_by(&to_bool/1),
+          delete: transform_by(~x"./Delete/text()"s, &to_bool/1),
+          read: transform_by(~x"./Read/text()"s, &to_bool/1),
+          write: transform_by(~x"./Write/text()"s, &to_bool/1),
           retention_policy: [
             ~x"./RetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+            enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ],
         hour_metrics: [
           ~x"/StorageServiceProperties/HourMetrics",
           version: ~x"./Version/text()"s,
-          enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
+          enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
+          include_apis: transform_by(~x"./IncludeAPIs/text()"s, &to_bool/1),
           retention_policy: [
             ~x"./RetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+            enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ],
         minute_metrics: [
           ~x"/StorageServiceProperties/MinuteMetrics",
           version: ~x"./Version/text()"s,
-          enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-          include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
+          enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
+          include_apis: transform_by(~x"./IncludeAPIs/text()"s, &to_bool/1),
           retention_policy: [
             ~x"./RetentionPolicy",
-            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+            enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ],
         cors_rules: [
           ~x"/StorageServiceProperties/Cors/CorsRule"l,
           max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
-          allowed_origins:
-            ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
-          allowed_methods:
-            ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
-          exposed_headers:
-            ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
-          allowed_headers:
-            ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(",")))
+          allowed_origins: transform_by(~x"./AllowedOrigins/text()"s, &String.split(&1, ",")),
+          allowed_methods: transform_by(~x"./AllowedMethods/text()"s, &String.split(&1, ",")),
+          exposed_headers: transform_by(~x"./ExposedHeaders/text()"s, &String.split(&1, ",")),
+          allowed_headers: transform_by(~x"./AllowedHeaders/text()"s, &String.split(&1, ","))
         ],
         default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
         delete_retention_policy: [
           ~x"/StorageServiceProperties/DeleteRetentionPolicy",
-          enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+          enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
           days: ~x"./Days/text()"I
         ]
       ]
@@ -85,11 +82,14 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
   defmodule ServiceProperties do
     @moduledoc false
 
+    import RequestBuilder
     import SweetXml
     import XmlBuilder
-    import ExMicrosoftAzureStorage.Storage.RequestBuilder
 
-    alias __MODULE__.{Logging, RetentionPolicy, Metrics, CorsRule}
+    alias __MODULE__.CorsRule
+    alias __MODULE__.Logging
+    alias __MODULE__.Metrics
+    alias __MODULE__.RetentionPolicy
 
     defstruct [
       :logging,
@@ -101,7 +101,8 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
     ]
 
     def to_struct(data) do
-      struct(__MODULE__, data)
+      __MODULE__
+      |> struct(data)
       |> Map.update!(:logging, &Logging.to_struct/1)
       |> Map.update!(:hour_metrics, &Metrics.to_struct/1)
       |> Map.update!(:minute_metrics, &Metrics.to_struct/1)
@@ -114,18 +115,13 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
       defstruct [:version, :delete, :read, :write, :retention_policy]
 
       def to_struct(data) do
-        struct(__MODULE__, data)
+        __MODULE__
+        |> struct(data)
         |> Map.update!(:retention_policy, &RetentionPolicy.to_struct/1)
       end
     end
 
-    def xml_logging(%{
-          version: version,
-          delete: delete,
-          read: read,
-          write: write,
-          retention_policy: retention_policy
-        }) do
+    def xml_logging(%{version: version, delete: delete, read: read, write: write, retention_policy: retention_policy}) do
       element(
         {:Logging,
          [
@@ -150,8 +146,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
       element({name, [{:Enabled, false}]})
     end
 
-    def xml_retention_policy(name, %{enabled: true, days: days})
-        when is_atom(name) and days > 0 and days <= 365 do
+    def xml_retention_policy(name, %{enabled: true, days: days}) when is_atom(name) and days > 0 and days <= 365 do
       element({name, [{:Enabled, true}, {:Days, days}]})
     end
 
@@ -160,20 +155,18 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
       defstruct [:version, :enabled, :include_apis, :retention_policy]
 
       def to_struct(data) do
-        struct(__MODULE__, data)
+        __MODULE__
+        |> struct(data)
         |> Map.update!(:retention_policy, &RetentionPolicy.to_struct/1)
       end
     end
 
-    def xml_metrics(
-          name,
-          %{
-            version: version,
-            enabled: true,
-            include_apis: include_apis,
-            retention_policy: retention_policy
-          }
-        ) do
+    def xml_metrics(name, %{
+          version: version,
+          enabled: true,
+          include_apis: include_apis,
+          retention_policy: retention_policy
+        }) do
       element(
         {name,
          [
@@ -185,14 +178,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
       )
     end
 
-    def xml_metrics(
-          name,
-          %{
-            version: version,
-            enabled: false,
-            retention_policy: retention_policy
-          }
-        ) do
+    def xml_metrics(name, %{version: version, enabled: false, retention_policy: retention_policy}) do
       element(
         {name,
          [
@@ -213,12 +199,12 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
         :allowed_headers
       ]
 
-      def to_struct(data) when is_list(data), do: data |> Enum.map(&to_struct/1)
+      def to_struct(data) when is_list(data), do: Enum.map(data, &to_struct/1)
       def to_struct(data), do: struct(__MODULE__, data)
     end
 
     defp xml_cors_rules(rules) when is_list(rules) do
-      element(:Cors, rules |> Enum.map(&xml_cors_rule/1))
+      element(:Cors, Enum.map(rules, &xml_cors_rule/1))
     end
 
     defp xml_cors_rule(%{
@@ -228,19 +214,19 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
            exposed_headers: exposed_headers,
            allowed_headers: allowed_headers
          })
-         when is_integer(max_age_in_seconds) and is_list(allowed_origins) and
-                is_list(allowed_methods) and is_list(exposed_headers) and is_list(allowed_headers) do
+         when is_integer(max_age_in_seconds) and is_list(allowed_origins) and is_list(allowed_methods) and
+                is_list(exposed_headers) and is_list(allowed_headers) do
       element(:CorsRule, [
         element(:MaxAgeInSeconds, max_age_in_seconds),
-        element(:AllowedOrigins, allowed_origins |> Enum.join(",")),
-        element(:AllowedMethods, allowed_methods |> Enum.join(",")),
-        element(:ExposedHeaders, exposed_headers |> Enum.join(",")),
-        element(:AllowedHeaders, allowed_headers |> Enum.join(","))
+        element(:AllowedOrigins, Enum.join(allowed_origins, ",")),
+        element(:AllowedMethods, Enum.join(allowed_methods, ",")),
+        element(:ExposedHeaders, Enum.join(exposed_headers, ",")),
+        element(:AllowedHeaders, Enum.join(allowed_headers, ","))
       ])
     end
 
+    # default_service_version: default_service_version,
     def xml_blob_service_properties(%{
-          # default_service_version: default_service_version,
           logging: logging,
           hour_metrics: hour_metrics,
           minute_metrics: minute_metrics,
@@ -272,55 +258,51 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
           logging: [
             ~x"./Logging",
             version: ~x"./Version/text()"s,
-            delete: ~x"./Delete/text()"s |> transform_by(&to_bool/1),
-            read: ~x"./Read/text()"s |> transform_by(&to_bool/1),
-            write: ~x"./Write/text()"s |> transform_by(&to_bool/1),
+            delete: transform_by(~x"./Delete/text()"s, &to_bool/1),
+            read: transform_by(~x"./Read/text()"s, &to_bool/1),
+            write: transform_by(~x"./Write/text()"s, &to_bool/1),
             retention_policy: [
               ~x"./RetentionPolicy",
-              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+              enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
               days: ~x"./Days/text()"I
             ]
           ],
           hour_metrics: [
             ~x"./HourMetrics",
             version: ~x"./Version/text()"s,
-            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-            include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
+            enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
+            include_apis: transform_by(~x"./IncludeAPIs/text()"s, &to_bool/1),
             retention_policy: [
               ~x"./RetentionPolicy",
-              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+              enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
               days: ~x"./Days/text()"I
             ]
           ],
           minute_metrics: [
             ~x"./MinuteMetrics",
             version: ~x"./Version/text()"s,
-            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
-            include_apis: ~x"./IncludeAPIs/text()"s |> transform_by(&to_bool/1),
+            enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
+            include_apis: transform_by(~x"./IncludeAPIs/text()"s, &to_bool/1),
             retention_policy: [
               ~x"./RetentionPolicy",
-              enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+              enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
               days: ~x"./Days/text()"I
             ]
           ],
           cors_rules: [
             ~x"./Cors/CorsRule"l,
             max_age_in_seconds: ~x"./MaxAgeInSeconds/text()"I,
-            allowed_origins:
-              ~x"./AllowedOrigins/text()"s |> transform_by(&(&1 |> String.split(","))),
-            allowed_methods:
-              ~x"./AllowedMethods/text()"s |> transform_by(&(&1 |> String.split(","))),
-            exposed_headers:
-              ~x"./ExposedHeaders/text()"s |> transform_by(&(&1 |> String.split(","))),
-            allowed_headers:
-              ~x"./AllowedHeaders/text()"s |> transform_by(&(&1 |> String.split(",")))
+            allowed_origins: transform_by(~x"./AllowedOrigins/text()"s, &String.split(&1, ",")),
+            allowed_methods: transform_by(~x"./AllowedMethods/text()"s, &String.split(&1, ",")),
+            exposed_headers: transform_by(~x"./ExposedHeaders/text()"s, &String.split(&1, ",")),
+            allowed_headers: transform_by(~x"./AllowedHeaders/text()"s, &String.split(&1, ","))
           ],
           default_service_version: ~x"/StorageServiceProperties/DefaultServiceVersion/text()"s,
           # delete_retention_policy is not present in responses from Azurite (the storage simulator)
           # so we have to make this property optional with the `o` modifier passed to `~x`.
           delete_retention_policy: [
             ~x"./DeleteRetentionPolicy"o,
-            enabled: ~x"./Enabled/text()"s |> transform_by(&to_bool/1),
+            enabled: transform_by(~x"./Enabled/text()"s, &to_bool/1),
             days: ~x"./Days/text()"I
           ]
         ]
@@ -342,13 +324,12 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
         {
           :ok,
-          response.body
-          |> xmap(__MODULE__.Responses.get_blob_service_stats_response())
+          xmap(response.body, __MODULE__.Responses.get_blob_service_stats_response())
           #  |> Map.put(:headers, response.headers)
           #  |> Map.put(:url, response.url)
           #  |> Map.put(:status, response.status)
@@ -370,10 +351,10 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobStorage do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {_header, request_id} = response.headers |> List.keyfind("x-ms-request-id", 0)
+        {_header, request_id} = List.keyfind(response.headers, "x-ms-request-id", 0)
 
         {:ok,
          %{}

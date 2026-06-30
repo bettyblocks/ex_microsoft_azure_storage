@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   azure:
     image: mcr.microsoft.com/azure-storage/azurite:3.11.0

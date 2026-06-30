@@ -2,13 +2,13 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
   @moduledoc """
   Blob
   """
-  require Logger
-
   import ExMicrosoftAzureStorage.Storage.RequestBuilder
   import SweetXml
 
   alias ExMicrosoftAzureStorage.Storage.BlobProperties
   alias ExMicrosoftAzureStorage.Storage.Container
+
+  require Logger
 
   @enforce_keys [:container, :blob_name]
   @max_concurrency 3
@@ -19,12 +19,11 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
   defstruct [:container, :blob_name]
 
-  def new(%Container{} = container, blob_name)
-      when is_binary(blob_name),
-      do: %__MODULE__{container: container, blob_name: blob_name}
+  def new(%Container{} = container, blob_name) when is_binary(blob_name),
+    do: %__MODULE__{container: container, blob_name: blob_name}
 
   def to_block_id(block_id) when is_binary(block_id), do: block_id
-  def to_block_id(block_id) when is_integer(block_id), do: <<block_id::120>> |> Base.encode64()
+  def to_block_id(block_id) when is_integer(block_id), do: Base.encode64(<<block_id::120>>)
 
   @doc """
   The `put_block` operation creates a new block to be committed as part of a blob.
@@ -54,12 +53,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 201} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -82,18 +79,16 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
       |> method(:put)
       |> url("/#{container_name}/#{blob_name}")
       |> add_param(:query, :comp, "blocklist")
-      |> body(block_list |> serialize_block_list())
+      |> body(serialize_block_list(block_list))
       |> add_headers(headers)
       |> sign_and_call(:blob_service)
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 201} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -112,13 +107,8 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
   defp deserialize_block_list(xml_body) do
     deserialize_block = fn node ->
       %{
-        name: node |> xpath(~x"./Name/text()"s),
-        size:
-          node
-          |> xpath(
-            ~x"./Size/text()"s
-            |> transform_by(fn t -> t |> Integer.parse() |> elem(0) end)
-          )
+        name: xpath(node, ~x"./Name/text()"s),
+        size: xpath(node, transform_by(~x"./Size/text()"s, fn t -> t |> Integer.parse() |> elem(0) end))
       }
     end
 
@@ -151,19 +141,19 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
       |> method(:get)
       |> url("/#{container_name}/#{blob_name}")
       |> add_param(:query, :comp, "blocklist")
-      |> add_param(:query, :blocklisttype, block_list_type |> Atom.to_string())
+      |> add_param(:query, :blocklisttype, Atom.to_string(block_list_type))
       |> add_param_if(snapshot != nil, :query, :snapshot, snapshot)
       |> sign_and_call(:blob_service)
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
         {:ok,
          response
          |> create_success_response()
-         |> Map.merge(response.body |> deserialize_block_list())}
+         |> Map.merge(deserialize_block_list(response.body))}
     end
   end
 
@@ -185,10 +175,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok, response |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -205,13 +195,13 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
         {:ok,
          response
          |> create_success_response()
-         |> Map.put(:properties, response.headers |> BlobProperties.deserialise())}
+         |> Map.put(:properties, BlobProperties.deserialise(response.headers))}
     end
   end
 
@@ -256,10 +246,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok, response |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -270,29 +260,23 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
   `get_blob_properties/2`, merging the result and handing it over to `set_blob_properties/2`.
   """
   def update_blob_properties(blob, blob_properties) do
-    with {:ok, %{properties: existing_blob_properties}} <- blob |> get_blob_properties() do
+    with {:ok, %{properties: existing_blob_properties}} <- get_blob_properties(blob) do
       merged_properties = Map.merge(existing_blob_properties, blob_properties)
-      blob |> set_blob_properties(merged_properties)
+      set_blob_properties(blob, merged_properties)
     end
   end
 
-  defp transform_set_blob_property_header({"cache-control", value}),
-    do: {"x-ms-blob-cache-control", value}
+  defp transform_set_blob_property_header({"cache-control", value}), do: {"x-ms-blob-cache-control", value}
 
-  defp transform_set_blob_property_header({"content-type", value}),
-    do: {"x-ms-blob-content-type", value}
+  defp transform_set_blob_property_header({"content-type", value}), do: {"x-ms-blob-content-type", value}
 
-  defp transform_set_blob_property_header({"content-md5", value}),
-    do: {"x-ms-blob-content-md5", value}
+  defp transform_set_blob_property_header({"content-md5", value}), do: {"x-ms-blob-content-md5", value}
 
-  defp transform_set_blob_property_header({"content-encoding", value}),
-    do: {"x-ms-blob-content-encoding", value}
+  defp transform_set_blob_property_header({"content-encoding", value}), do: {"x-ms-blob-content-encoding", value}
 
-  defp transform_set_blob_property_header({"content-language", value}),
-    do: {"x-ms-blob-content-language", value}
+  defp transform_set_blob_property_header({"content-language", value}), do: {"x-ms-blob-content-language", value}
 
-  defp transform_set_blob_property_header({"content-disposition", value}),
-    do: {"x-ms-blob-content-disposition", value}
+  defp transform_set_blob_property_header({"content-disposition", value}), do: {"x-ms-blob-content-disposition", value}
 
   defp transform_set_blob_property_header(header), do: header
 
@@ -304,9 +288,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
         blob_data,
         opts \\ []
       ) do
-    opts =
-      opts
-      |> Keyword.put(:blob_type, "BlockBlob")
+    opts = Keyword.put(opts, :blob_type, "BlockBlob")
 
     response =
       context
@@ -320,20 +302,20 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 201} ->
-        {:ok, response |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
   defp add_headers(request, headers) do
-    Enum.reduce(headers, request, fn {k, v}, request -> request |> add_header(k, v) end)
+    Enum.reduce(headers, request, fn {k, v}, request -> add_header(request, k, v) end)
   end
 
   defp add_headers_from_opts(request, opts) do
     Enum.reduce(opts, request, fn {key, value}, request ->
-      request |> add_header(header_for_opt(key), value)
+      add_header(request, header_for_opt(key), value)
     end)
   end
 
@@ -357,10 +339,9 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
       |> Keyword.put(:copy_source, url)
 
     {content_opts, opts} =
-      opts
-      |> Keyword.split([:content_type, :content_encoding, :content_disposition, :content_language])
+      Keyword.split(opts, [:content_type, :content_encoding, :content_disposition, :content_language])
 
-    {content_type_workaround_enabled, opts} = opts |> Keyword.pop(:content_type_workaround, false)
+    {content_type_workaround_enabled, opts} = Keyword.pop(opts, :content_type_workaround, false)
 
     response =
       context
@@ -372,7 +353,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 201} ->
         with {:ok, _response} <-
@@ -382,7 +363,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
                  content_opts,
                  content_type_workaround_enabled
                ) do
-          {:ok, response |> create_success_response()}
+          {:ok, create_success_response(response)}
         end
     end
   end
@@ -390,7 +371,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
   # Workaround for a bug in Azure Storage where original content-type is lost on put_blob_from_url
   # requests https://github.com/joeapearson/elixir-azure/issues/2
   defp workaround_for_put_blob_from_url(_blob, _url, _content_opts, false) do
-    unless suppress_workaround_for_put_blob_from_url_warning?() do
+    if !suppress_workaround_for_put_blob_from_url_warning?() do
       Logger.warning("""
       Your blob's content-* metadata may not have been correctly copied.
 
@@ -414,7 +395,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
   end
 
   defp workaround_for_put_blob_from_url(blob, _url, content_type_attrs, true) do
-    blob |> update_blob_properties(struct!(BlobProperties, content_type_attrs))
+    update_blob_properties(blob, struct!(BlobProperties, content_type_attrs))
   end
 
   defp suppress_workaround_for_put_blob_from_url_warning? do
@@ -423,20 +404,9 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
   @spec upload_file(Container.t(), String.t(), String.t() | nil, map | nil) ::
           {:ok, map} | {:error, map}
-  def upload_file(
-        container,
-        source_path,
-        blob_name \\ nil,
-        blob_properties \\ nil
-      )
+  def upload_file(container, source_path, blob_name \\ nil, blob_properties \\ nil)
 
-  def upload_file(
-        %Container{} = container,
-        source_path,
-        blob_name,
-        blob_properties
-      )
-      when is_map(blob_properties) do
+  def upload_file(%Container{} = container, source_path, blob_name, blob_properties) when is_map(blob_properties) do
     headers =
       BlobProperties
       |> struct(blob_properties)
@@ -482,7 +452,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
   defp upload_stream(blob, filename) do
     filename
-    |> File.stream!([], @max_block_size)
+    |> File.stream!(@max_block_size, [])
     |> Stream.zip(1..@max_number_of_blocks)
     |> Task.async_stream(
       fn {content, i} ->
@@ -532,11 +502,11 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-blob
 
     %{snapshot: snapshot, timeout: timeout} =
-      case [snapshot: nil, timeout: -1]
-           |> Keyword.merge(opts)
-           |> Enum.into(%{}) do
-        %{snapshot: snapshot, timeout: timeout} -> %{snapshot: snapshot, timeout: timeout}
-      end
+      [snapshot: nil, timeout: -1]
+      |> Keyword.merge(opts)
+      |> Map.new()
+
+    %{snapshot: snapshot, timeout: timeout} = %{snapshot: snapshot, timeout: timeout}
 
     response =
       context
@@ -549,10 +519,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 202} ->
-        {:ok, response |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -564,31 +534,29 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
         } = target,
         opts \\ []
       ) do
-    opts =
-      opts
-      |> Keyword.put(:copy_source, url(source))
+    opts = Keyword.put(opts, :copy_source, url(source))
 
     poll_interval = Keyword.get(opts, :poll_interval, 5000)
 
-    Stream.resource(
-      fn ->
-        context
-        |> new_azure_storage_request()
-        |> method(:put)
-        |> url("/#{container_name}/#{blob_name}")
-        |> add_headers_from_opts(opts)
-        |> sign_and_call(:blob_service)
-      end,
+    fn ->
+      context
+      |> new_azure_storage_request()
+      |> method(:put)
+      |> url("/#{container_name}/#{blob_name}")
+      |> add_headers_from_opts(opts)
+      |> sign_and_call(:blob_service)
+    end
+    |> Stream.resource(
       fn
         nil ->
           :timer.sleep(poll_interval)
           {[get_blob_properties(target)], nil}
 
         %{status: status} = response when 400 <= status and status < 500 ->
-          {[{:error, response |> create_error_response()}], nil}
+          {[{:error, create_error_response(response)}], nil}
 
         %{status: status} = response when status < 300 ->
-          {[{:ok, response |> create_success_response()}], nil}
+          {[{:ok, create_success_response(response)}], nil}
       end,
       fn _ -> nil end
     )
@@ -606,25 +574,16 @@ defmodule ExMicrosoftAzureStorage.Storage.Blob do
     end)
   end
 
-  def copy(
-        %__MODULE__{} = source,
-        %__MODULE__{} = target,
-        opts \\ []
-      ) do
-    copy_stream(source, target, opts)
+  def copy(%__MODULE__{} = source, %__MODULE__{} = target, opts \\ []) do
+    source
+    |> copy_stream(target, opts)
     |> Enum.reduce(nil, fn result, _ -> result end)
   end
 
   def url(%__MODULE__{
-        container: %Container{
-          storage_context: context,
-          container_name: container
-        },
+        container: %Container{storage_context: context, container_name: container},
         blob_name: blob_name
-      }),
-      do:
-        ExMicrosoftAzureStorage.Storage.endpoint_url(context, :blob_service) <>
-          "/#{container}/#{blob_name}"
+      }), do: ExMicrosoftAzureStorage.Storage.endpoint_url(context, :blob_service) <> "/#{container}/#{blob_name}"
 
   defp config, do: Application.get_env(:azure, __MODULE__, [])
 end

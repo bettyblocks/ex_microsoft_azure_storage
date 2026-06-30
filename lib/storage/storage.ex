@@ -57,13 +57,9 @@ defmodule ExMicrosoftAzureStorage.Storage do
 
   def secondary(%__MODULE__{is_development_factory: true} = context), do: context
 
-  def secondary(%__MODULE__{} = context),
-    do:
-      context
-      |> Map.update!(:account_name, &(&1 <> "-secondary"))
+  def secondary(%__MODULE__{} = context), do: Map.update!(context, :account_name, &(&1 <> "-secondary"))
 
-  def endpoint_url(%__MODULE__{is_development_factory: true, host: host} = context, service)
-      when is_atom(service) do
+  def endpoint_url(%__MODULE__{is_development_factory: true, host: host} = context, service) when is_atom(service) do
     port =
       case service do
         :blob_service -> 10_000
@@ -71,25 +67,15 @@ defmodule ExMicrosoftAzureStorage.Storage do
         :table_service -> 10_002
       end
 
-    %URI{
-      scheme: default_endpoints_protocol(context),
-      host: host,
-      port: port,
-      path: "/" <> context.account_name
-    }
-    |> URI.to_string()
+    "#{default_endpoints_protocol(context)}://#{host}:#{port}/#{context.account_name}"
   end
 
   def endpoint_url(%__MODULE__{} = context, service) when is_atom(service),
-    do:
-      %URI{scheme: default_endpoints_protocol(context), host: endpoint_hostname(context, service)}
-      |> URI.to_string()
+    do: "#{default_endpoints_protocol(context)}://#{endpoint_hostname(context, service)}"
 
   def endpoint_hostname(%__MODULE__{} = context, service) when is_atom(service),
     do: "#{context.account_name}.#{@endpoint_names[service]}.#{context.endpoint_suffix}"
 
-  def default_endpoints_protocol(%__MODULE__{
-        default_endpoints_protocol: default_endpoints_protocol
-      }),
-      do: default_endpoints_protocol
+  def default_endpoints_protocol(%__MODULE__{default_endpoints_protocol: default_endpoints_protocol}),
+    do: default_endpoints_protocol
 end

@@ -6,6 +6,9 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
   import ExMicrosoftAzureStorage.Storage.DateTimeUtils
   import ExMicrosoftAzureStorage.Storage.Utilities
 
+  # This struct mirrors the full set of Azure blob property headers, so the
+  # field count legitimately exceeds Credo's default limit.
+  # credo:disable-for-next-line Credo.Check.Warning.StructFieldAmount
   defstruct [
     :last_modified,
     :creation_time,
@@ -139,8 +142,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
     meta_headers =
       properties |> Map.get(:meta, []) |> Enum.map(fn {k, v} -> {"x-ms-meta-#{k}", v} end)
 
-    @headers
-    |> Enum.reduce(meta_headers, fn {header, key, type}, acc ->
+    Enum.reduce(@headers, meta_headers, fn {header, key, type}, acc ->
       case {key, Map.get(properties, key)} do
         {_, nil} ->
           acc
@@ -162,12 +164,11 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
   def deserialise(headers) do
     meta_headers =
       headers
-      |> Enum.filter(fn {k, _} -> k |> String.starts_with?("x-ms-meta-") end)
-      |> Enum.into([], fn {k, v} -> {k |> String.replace("x-ms-meta-", ""), v} end)
+      |> Enum.filter(fn {k, _} -> String.starts_with?(k, "x-ms-meta-") end)
+      |> Enum.map(fn {k, v} -> {String.replace(k, "x-ms-meta-", ""), v} end)
 
     attrs =
-      @headers
-      |> Enum.reduce(%{}, fn {header, key, type}, acc ->
+      Enum.reduce(@headers, %{}, fn {header, key, type}, acc ->
         case key do
           :meta ->
             Map.put(acc, :meta, meta_headers)
@@ -188,14 +189,14 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
     end
   end
 
-  defp encode(value, :rfc1123_datetime), do: value |> to_string_rfc1123()
-  defp encode(value, :integer), do: value |> Integer.to_string()
-  defp encode(value, :boolean), do: value |> to_string()
+  defp encode(value, :rfc1123_datetime), do: to_string_rfc1123(value)
+  defp encode(value, :integer), do: Integer.to_string(value)
+  defp encode(value, :boolean), do: to_string(value)
   defp encode(value, _format), do: value
 
   defp decode(nil, _decoder), do: nil
-  defp decode(value, :rfc1123_datetime), do: value |> date_parse_rfc1123()
-  defp decode(value, :integer), do: value |> String.to_integer()
-  defp decode(value, :boolean), do: value |> to_bool()
+  defp decode(value, :rfc1123_datetime), do: date_parse_rfc1123(value)
+  defp decode(value, :integer), do: String.to_integer(value)
+  defp decode(value, :boolean), do: to_bool(value)
   defp decode(value, _format), do: value
 end

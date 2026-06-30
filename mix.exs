@@ -1,7 +1,7 @@
 defmodule ExMicrosoftAzureStorage.MixProject do
   use Mix.Project
 
-  @version "1.1.2"
+  @version "2.0.0"
   @repo_url "https://github.com/bettyblocks/ex_microsoft_azure_storage"
 
   def project do
@@ -34,12 +34,11 @@ defmodule ExMicrosoftAzureStorage.MixProject do
       {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:ex_machina, ">= 0.0.0", only: [:dev, :test]},
-      {:hackney, "~> 1.17"},
+      {:hackney, ">= 0.0.0"},
       {:jason, "~> 1.2", optional: true},
-      {:poison, ">= 1.0.0", optional: true},
+      {:styler, "~> 1.1", only: [:dev, :test], runtime: false},
       {:sweet_xml, "~> 0.7"},
       {:tesla, "~> 1.4"},
-      {:timex, "~> 3.7"},
       {:xml_builder, "~> 2.2"}
     ]
   end

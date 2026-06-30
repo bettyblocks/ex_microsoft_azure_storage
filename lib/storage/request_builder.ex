@@ -3,42 +3,44 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
   RequestBuilder
   """
 
-  import SweetXml
   import ExMicrosoftAzureStorage.Storage.Utilities, only: [to_bool: 1]
+  import SweetXml
 
   alias ExMicrosoftAzureStorage.Storage
-  alias ExMicrosoftAzureStorage.Storage.{ApiVersion, Container, DateTimeUtils, RestClient}
+  alias ExMicrosoftAzureStorage.Storage.ApiVersion
+  alias ExMicrosoftAzureStorage.Storage.Container
+  alias ExMicrosoftAzureStorage.Storage.DateTimeUtils
+  alias ExMicrosoftAzureStorage.Storage.RestClient
 
   defp json_library, do: Application.get_env(:azure, :json_library, Jason)
 
   def new_azure_storage_request(%Storage{} = storage), do: %{storage_context: storage}
 
-  def method(request, m), do: request |> Map.put_new(:method, m)
+  def method(request, m), do: Map.put_new(request, :method, m)
 
-  def url(request, u), do: request |> Map.put_new(:url, u)
+  def url(request, u), do: Map.put_new(request, :url, u)
 
   def body(request, body) do
     request
-    |> add_header("Content-Length", "#{body |> byte_size()}")
+    |> add_header("Content-Length", "#{byte_size(body)}")
     |> Map.put(:body, body)
   end
 
   def add_header_content_md5(request) do
-    body = request |> Map.get(:body)
-    md5 = :crypto.hash(:md5, body) |> Base.encode64()
+    body = Map.get(request, :body)
+    md5 = :md5 |> :crypto.hash(body) |> Base.encode64()
 
-    request
-    |> add_header("Content-MD5", md5)
+    add_header(request, "Content-MD5", md5)
   end
 
   def add_header_if(request, false, _k, _v), do: request
-  def add_header_if(request, true, k, v), do: request |> add_header(k, v)
+  def add_header_if(request, true, k, v), do: add_header(request, k, v)
 
   # request |> Map.update!(:headers, &Map.merge(&1, headers))
-  def add_header(request = %{headers: headers}, k, v) when headers != nil,
-    do: request |> Map.put(:headers, [{k, v} | headers])
+  def add_header(%{headers: headers} = request, k, v) when headers != nil,
+    do: Map.put(request, :headers, [{k, v} | headers])
 
-  def add_header(request, k, v), do: request |> Map.put(:headers, [{k, v}])
+  def add_header(request, k, v), do: Map.put(request, :headers, [{k, v}])
 
   def has_header?(%{headers: headers}, k), do: List.keymember?(headers, k, 0)
   def has_header?(_request, _k), do: false
@@ -46,9 +48,7 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
   @prefix_x_ms_meta "x-ms-meta-"
 
   def add_header_x_ms_meta(request, %{} = kvp),
-    do:
-      kvp
-      |> Enum.reduce(request, fn {k, v}, r -> r |> add_header(@prefix_x_ms_meta <> k, v) end)
+    do: Enum.reduce(kvp, request, fn {k, v}, r -> add_header(r, @prefix_x_ms_meta <> k, v) end)
 
   def add_optional_params(request, _, []), do: request
 
@@ -66,10 +66,9 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
 
   def add_param_if(request, false, _location, _key, _value), do: request
 
-  def add_param_if(request, true, location, key, value),
-    do: request |> add_param(location, key, value)
+  def add_param_if(request, true, location, key, value), do: add_param(request, location, key, value)
 
-  def add_param(request, :body, :body, value), do: request |> Map.put(:body, value)
+  def add_param(request, :body, :body, value), do: Map.put(request, :body, value)
 
   def add_param(request, :body, key, value) do
     request
@@ -88,21 +87,19 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
   def add_param(request, :file, name, path) do
     request
     |> Map.put_new_lazy(:body, &Tesla.Multipart.new/0)
-    |> Map.update!(:body, &(&1 |> Tesla.Multipart.add_file(path, name: name)))
+    |> Map.update!(:body, &Tesla.Multipart.add_file(&1, path, name: name))
   end
 
   def add_param(request, :form, name, value) do
-    request
-    |> Map.update(:body, %{name => value}, &(&1 |> Map.put(name, value)))
+    Map.update(request, :body, %{name => value}, &Map.put(&1, name, value))
   end
 
   def add_param(request, location, key, value) do
-    request
-    |> Map.update(location, [{key, value}], &(&1 ++ [{key, value}]))
+    Map.update(request, location, [{key, value}], &(&1 ++ [{key, value}]))
   end
 
   def add_param(request, :query, opts) when is_list(opts) do
-    filtered_opts = opts |> only_non_empty_values
+    filtered_opts = only_non_empty_values(opts)
 
     new_q =
       case request[:query] do
@@ -110,33 +107,27 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
         query -> query ++ filtered_opts
       end
 
-    request
-    |> Map.put(:query, new_q)
+    Map.put(request, :query, new_q)
   end
 
   defp only_non_empty_values(opts) when is_list(opts),
-    do:
-      opts
-      |> Enum.filter(fn {_, value} -> value != nil && value != "" end)
-      |> Enum.into([])
+    do: opts |> Enum.filter(fn {_, value} -> value != nil && value != "" end) |> Enum.to_list()
 
-  defp primary(account_name), do: account_name |> String.replace("-secondary", "")
+  defp primary(account_name), do: String.replace(account_name, "-secondary", "")
 
   defp canonicalized_headers(headers) do
     headers
-    |> Enum.map(fn {k, v} -> {k |> String.downcase(), v} end)
-    |> Enum.filter(fn {k, _} -> k |> String.starts_with?("x-ms-") end)
+    |> Enum.map(fn {k, v} -> {String.downcase(k), v} end)
+    |> Enum.filter(fn {k, _} -> String.starts_with?(k, "x-ms-") end)
     |> Enum.sort()
     |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end)
   end
 
-  def remove_empty_headers(request = %{headers: headers}) when is_list(headers) do
+  def remove_empty_headers(%{headers: headers} = request) when is_list(headers) do
     new_headers =
-      headers
-      |> Enum.filter(fn {_k, v} -> v != nil && String.length(v) > 0 end)
+      Enum.filter(headers, fn {_k, v} -> v != nil && String.length(v) > 0 end)
 
-    request
-    |> Map.put(:headers, new_headers)
+    Map.put(request, :headers, new_headers)
   end
 
   defp get_header(headers, name) do
@@ -146,107 +137,91 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
     end
   end
 
+  # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
   defp protect(
-         # https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
-
-         data = %{
+         %{
            method: method,
            url: url,
            query: query,
            headers: headers,
            storage_context:
-             storage_context = %Storage{
-               is_development_factory: is_development_factory,
-               account_key: account_key,
-               aad_token_provider: nil
-             }
-         }
+             %Storage{is_development_factory: is_development_factory, account_key: account_key, aad_token_provider: nil} =
+               storage_context
+         } = data
        )
        when is_binary(account_key) and account_key != nil do
-    canonicalized_headers = headers |> canonicalized_headers()
+    canonicalized_headers = canonicalized_headers(headers)
 
     url =
-      case is_development_factory do
-        true -> "/devstoreaccount1#{url}"
-        _ -> url
+      if is_development_factory do
+        "/devstoreaccount1#{url}"
+      else
+        url
       end
 
     canonicalized_resource =
       case query do
         [] ->
-          "/#{storage_context.account_name |> primary()}#{url}"
+          "/#{primary(storage_context.account_name)}#{url}"
 
         _ ->
-          "/#{storage_context.account_name |> primary()}#{url}\n" <>
+          "/#{primary(storage_context.account_name)}#{url}\n" <>
             (query
              |> Enum.sort_by(& &1)
              |> Enum.map_join("\n", fn {k, v} -> "#{k}:#{v}" end))
       end
 
     string_to_sign =
-      [
-        method |> Atom.to_string() |> String.upcase(),
-        headers |> get_header("Content-Encoding"),
-        headers |> get_header("Content-Language"),
-        headers |> get_header("Content-Length"),
-        headers |> get_header("Content-MD5"),
-        headers |> get_header("Content-Type"),
-        headers |> get_header("Date"),
-        headers |> get_header("If-Modified-Since"),
-        headers |> get_header("If-Match"),
-        headers |> get_header("If-None-Match"),
-        headers |> get_header("If-Unmodified-Since"),
-        headers |> get_header("Range"),
-        canonicalized_headers,
-        canonicalized_resource
-      ]
-      |> Enum.join("\n")
+      Enum.join(
+        [
+          method |> Atom.to_string() |> String.upcase(),
+          get_header(headers, "Content-Encoding"),
+          get_header(headers, "Content-Language"),
+          get_header(headers, "Content-Length"),
+          get_header(headers, "Content-MD5"),
+          get_header(headers, "Content-Type"),
+          get_header(headers, "Date"),
+          get_header(headers, "If-Modified-Since"),
+          get_header(headers, "If-Match"),
+          get_header(headers, "If-None-Match"),
+          get_header(headers, "If-Unmodified-Since"),
+          get_header(headers, "Range"),
+          canonicalized_headers,
+          canonicalized_resource
+        ],
+        "\n"
+      )
 
     signature =
-      Storage.Crypto.hmac(:sha256, account_key |> Base.decode64!(), string_to_sign)
+      :sha256
+      |> Storage.Crypto.hmac(Base.decode64!(account_key), string_to_sign)
       |> Base.encode64()
 
-    data
-    |> add_header(
-      "Authorization",
-      "SharedKey #{storage_context.account_name |> primary()}:#{signature}"
-    )
+    add_header(data, "Authorization", "SharedKey #{primary(storage_context.account_name)}:#{signature}")
   end
 
   defp protect(
-         %{
-           storage_context: %Storage{account_key: nil, aad_token_provider: aad_token_provider},
-           uri: uri
-         } = request
+         %{storage_context: %Storage{account_key: nil, aad_token_provider: aad_token_provider}, uri: uri} = request
        ) do
     token =
       uri
       |> trim_uri_for_aad_request()
       |> aad_token_provider.()
 
-    request
-    |> add_header("Authorization", "Bearer #{token}")
+    add_header(request, "Authorization", "Bearer #{token}")
   end
 
   defp trim_uri_for_aad_request(uri) when is_binary(uri) do
-    %URI{host: host, scheme: scheme} = uri |> URI.parse()
+    %URI{host: host, scheme: scheme} = URI.parse(uri)
 
-    %URI{host: host, scheme: scheme}
-    |> URI.to_string()
+    "#{scheme}://#{host}"
   end
 
-  def sign_and_call(
-        request = %{storage_context: storage_context = %Storage{}},
-        service
-      )
+  def sign_and_call(%{storage_context: %Storage{} = storage_context} = request, service)
       when is_atom(service) and service in [:blob_service, :queue_service, :table_service] do
-    uri =
-      storage_context
-      |> Storage.endpoint_url(service)
+    uri = Storage.endpoint_url(storage_context, service)
 
-    connection =
-      uri
-      |> RestClient.new()
+    connection = RestClient.new(uri)
 
     add_content_type_header? = request.method == :put && !has_header?(request, "Content-Type")
 
@@ -258,15 +233,15 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
     |> add_missing(:query, [])
     |> Map.put(:uri, uri)
     |> protect()
-    |> Enum.into([])
-    |> (&RestClient.request(connection, &1)).()
+    |> Enum.to_list()
+    |> then(&RestClient.request(connection, &1))
     |> elem(1)
   end
 
   def add_missing(map, key, value) do
     case map do
       %{^key => _} -> map
-      %{} -> map |> Map.put(key, value)
+      %{} -> Map.put(map, key, value)
     end
   end
 
@@ -304,13 +279,12 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
   defp parse_body_and_update_response(%{body: ""} = response, _), do: response
 
   defp parse_body_and_update_response(%{body: body} = response, opts) do
-    case opts |> Keyword.get(:xml_body_parser) do
+    case Keyword.get(opts, :xml_body_parser) do
       nil ->
         response
 
       xml_parser when is_function(xml_parser) ->
-        response
-        |> Map.merge(body |> xmap(xml_parser.()))
+        Map.merge(response, xmap(body, xml_parser.()))
     end
   end
 
@@ -339,34 +313,33 @@ defmodule ExMicrosoftAzureStorage.Storage.RequestBuilder do
 
   defp copy_response_headers_into_map(%{} = response) do
     Enum.reduce(@response_headers, response, fn x, response ->
-      response |> copy_response_header_into_map(x)
+      copy_response_header_into_map(response, x)
     end)
   end
 
   defp copy_response_header_into_map(response, {http_header, key_to_set}),
-    do: response |> copy_response_header_into_map({http_header, key_to_set, &identity/1})
+    do: copy_response_header_into_map(response, {http_header, key_to_set, &identity/1})
 
   defp copy_response_header_into_map(response, {http_header, key_to_set, transform})
-       when is_map(response) and is_atom(key_to_set) and is_binary(http_header) and
-              is_function(transform, 1) do
-    http_header = http_header |> String.downcase()
+       when is_map(response) and is_atom(key_to_set) and is_binary(http_header) and is_function(transform, 1) do
+    http_header = String.downcase(http_header)
 
     case get_header(response.headers, http_header) do
       nil -> response
-      val -> response |> Map.put(key_to_set, val |> transform.())
+      val -> Map.put(response, key_to_set, transform.(val))
     end
   end
 
   defp copy_x_ms_meta_headers_into_map(response) do
     x_ms_meta =
       response.headers
-      |> Enum.filter(fn {k, _v} -> k |> String.starts_with?(@prefix_x_ms_meta) end)
-      |> Enum.map(fn {@prefix_x_ms_meta <> k, v} -> {k, v} end)
-      |> Enum.into(%{})
+      |> Enum.filter(fn {k, _v} -> String.starts_with?(k, @prefix_x_ms_meta) end)
+      |> Map.new(fn {@prefix_x_ms_meta <> k, v} -> {k, v} end)
 
-    case x_ms_meta |> Enum.empty?() do
-      true -> response
-      false -> response |> Map.put(:x_ms_meta, x_ms_meta)
+    if Enum.empty?(x_ms_meta) do
+      response
+    else
+      Map.put(response, :x_ms_meta, x_ms_meta)
     end
   end
 end

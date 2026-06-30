@@ -3,9 +3,9 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
   Queue
   """
 
-  use Timex
-  import SweetXml
   import ExMicrosoftAzureStorage.Storage.RequestBuilder
+  import SweetXml
+
   alias __MODULE__.Responses
   alias ExMicrosoftAzureStorage.Storage
   alias ExMicrosoftAzureStorage.Storage.DateTimeUtils
@@ -13,26 +13,21 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
   @enforce_keys [:storage_context, :queue_name]
   defstruct [:storage_context, :queue_name]
 
-  def new(storage_context = %Storage{}, queue_name) when is_binary(queue_name),
+  def new(%Storage{} = storage_context, queue_name) when is_binary(queue_name),
     do: %__MODULE__{storage_context: storage_context, queue_name: queue_name}
 
   defmodule Responses do
     @moduledoc false
-    alias ExMicrosoftAzureStorage.Storage.DateTimeUtils
-
     def put_message_response do
       [
         message_id: ~x"/QueueMessagesList/QueueMessage/MessageId/text()"s,
         pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
         insertion_time:
-          ~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s
-          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
+          transform_by(~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s, &DateTimeUtils.date_parse_rfc1123/1),
         expiration_time:
-          ~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s
-          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
+          transform_by(~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s, &DateTimeUtils.date_parse_rfc1123/1),
         time_next_visible:
-          ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
-          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1)
+          transform_by(~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s, &DateTimeUtils.date_parse_rfc1123/1)
       ]
     end
 
@@ -41,18 +36,13 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
         message_id: ~x"/QueueMessagesList/QueueMessage/MessageId/text()"s,
         pop_receipt: ~x"/QueueMessagesList/QueueMessage/PopReceipt/text()"s,
         insertion_time:
-          ~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s
-          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
+          transform_by(~x"/QueueMessagesList/QueueMessage/InsertionTime/text()"s, &DateTimeUtils.date_parse_rfc1123/1),
         expiration_time:
-          ~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s
-          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
+          transform_by(~x"/QueueMessagesList/QueueMessage/ExpirationTime/text()"s, &DateTimeUtils.date_parse_rfc1123/1),
         time_next_visible:
-          ~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s
-          |> transform_by(&DateTimeUtils.date_parse_rfc1123/1),
+          transform_by(~x"/QueueMessagesList/QueueMessage/TimeNextVisible/text()"s, &DateTimeUtils.date_parse_rfc1123/1),
         dequeue_count: ~x"/QueueMessagesList/QueueMessage/DequeueCount/text()"s,
-        message_text:
-          ~x"/QueueMessagesList/QueueMessage/MessageText/text()"s
-          |> transform_by(&Base.decode64!/1)
+        message_text: transform_by(~x"/QueueMessagesList/QueueMessage/MessageText/text()"s, &Base.decode64!/1)
       ]
     end
   end
@@ -70,7 +60,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
     %{timeout: timeout, meta: meta} =
       case [timeout: 0, meta: %{}]
            |> Keyword.merge(opts)
-           |> Enum.into(%{}) do
+           |> Map.new() do
         %{timeout: timeout, meta: meta} when 0 <= timeout and timeout <= 30 and is_map(meta) ->
           %{timeout: timeout, meta: meta}
       end
@@ -86,10 +76,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: status} when status == 201 or status == 204 ->
-        {:ok, response |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
@@ -98,7 +88,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
     %{timeout: timeout} =
       case [timeout: 0]
            |> Keyword.merge(opts)
-           |> Enum.into(%{}) do
+           |> Map.new() do
         %{timeout: timeout} when 0 <= timeout and timeout <= 30 -> %{timeout: timeout}
       end
 
@@ -112,23 +102,20 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: status} when status == 201 or status == 204 ->
-        {:ok, response |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
-  def get_metadata(
-        %__MODULE__{storage_context: context, queue_name: queue_name},
-        opts \\ []
-      ) do
+  def get_metadata(%__MODULE__{storage_context: context, queue_name: queue_name}, opts \\ []) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/get-queue-metadata
 
     %{timeout: timeout} =
       case [timeout: 0]
            |> Keyword.merge(opts)
-           |> Enum.into(%{}) do
+           |> Map.new() do
         %{timeout: timeout} when 0 <= timeout and timeout <= 30 -> %{timeout: timeout}
       end
 
@@ -143,17 +130,14 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
-        {:ok, response |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
-  def set_queue_metadata(
-        %__MODULE__{storage_context: context, queue_name: queue_name},
-        opts \\ []
-      ) do
+  def set_queue_metadata(%__MODULE__{storage_context: context, queue_name: queue_name}, opts \\ []) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/set-queue-metadata
 
     #
@@ -166,7 +150,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
     %{timeout: timeout, meta: meta} =
       case [timeout: 0, meta: %{}]
            |> Keyword.merge(opts)
-           |> Enum.into(%{}) do
+           |> Map.new() do
         %{timeout: timeout, meta: meta} when 0 <= timeout and timeout <= 30 and is_map(meta) ->
           %{timeout: timeout, meta: meta}
       end
@@ -183,34 +167,30 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: status} when status == 201 or status == 204 ->
-        {:ok, response |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
   @seconds_7_days 7 * 24 * 60 * 60
 
-  def put_message(
-        %__MODULE__{storage_context: context, queue_name: queue_name},
-        message,
-        opts \\ []
-      )
+  def put_message(%__MODULE__{storage_context: context, queue_name: queue_name}, message, opts \\ [])
       when is_binary(message) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/put-message
 
     opts_with_default =
       [visibilitytimeout: 0, messagettl: 0]
       |> Keyword.merge(opts)
-      |> Enum.into(%{})
+      |> Map.new()
 
     %{
       visibilitytimeout: visibilitytimeout,
       messagettl: messagettl
     } = visibility_timeout(opts_with_default)
 
-    body = "<QueueMessage><MessageText>#{message |> Base.encode64()}</MessageText></QueueMessage>"
+    body = "<QueueMessage><MessageText>#{Base.encode64(message)}</MessageText></QueueMessage>"
 
     response =
       context
@@ -224,22 +204,16 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 201} ->
-        {:ok,
-         response
-         |> create_success_response(xml_body_parser: &Responses.put_message_response/0)}
+        {:ok, create_success_response(response, xml_body_parser: &Responses.put_message_response/0)}
     end
   end
 
-  defp visibility_timeout(%{
-         visibilitytimeout: visibilitytimeout,
-         messagettl: messagettl
-       })
+  defp visibility_timeout(%{visibilitytimeout: visibilitytimeout, messagettl: messagettl})
        when visibilitytimeout >= 0 and visibilitytimeout <= @seconds_7_days and
-              (messagettl == -1 or messagettl == 0 or
-                 (messagettl >= 1 and messagettl <= @seconds_7_days)) do
+              (messagettl == -1 or messagettl == 0 or (messagettl >= 1 and messagettl <= @seconds_7_days)) do
     %{
       visibilitytimeout: visibilitytimeout,
       messagettl: messagettl
@@ -248,8 +222,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
   defp visibility_timeout(_) do
     raise ArgumentError,
-      message:
-        "Invalid visibility timeout given it should be within the range of 0 - #{@seconds_7_days} seconds."
+      message: "Invalid visibility timeout given it should be within the range of 0 - #{@seconds_7_days} seconds."
   end
 
   def get_message(%__MODULE__{storage_context: context, queue_name: queue_name}, opts \\ []) do
@@ -264,7 +237,7 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
     } =
       case opts_defaults
            |> Keyword.merge(opts)
-           |> Enum.into(%{}) do
+           |> Map.new() do
         %{
           numofmessages: numofmessages,
           visibilitytimeout: visibilitytimeout,
@@ -285,19 +258,19 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
       |> method(:get)
       |> url("/#{queue_name}/messages")
       |> add_param_if(
-        numofmessages != opts_defaults |> Keyword.get(:numofmessages),
+        numofmessages != Keyword.get(opts_defaults, :numofmessages),
         :query,
         :numofmessages,
         numofmessages
       )
       |> add_param_if(
-        visibilitytimeout != opts_defaults |> Keyword.get(:visibilitytimeout),
+        visibilitytimeout != Keyword.get(opts_defaults, :visibilitytimeout),
         :query,
         :visibilitytimeout,
         visibilitytimeout
       )
       |> add_param_if(
-        timeout != opts_defaults |> Keyword.get(:timeout),
+        timeout != Keyword.get(opts_defaults, :timeout),
         :query,
         :timeout,
         timeout
@@ -306,22 +279,17 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 200} ->
         {
           :ok,
-          response
-          |> create_success_response(xml_body_parser: &Responses.get_message_response/0)
+          create_success_response(response, xml_body_parser: &Responses.get_message_response/0)
         }
     end
   end
 
-  def delete_message(
-        %__MODULE__{storage_context: context, queue_name: queue_name},
-        popreceipt,
-        timeout \\ 30
-      ) do
+  def delete_message(%__MODULE__{storage_context: context, queue_name: queue_name}, popreceipt, timeout \\ 30) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/delete-message2
 
     response =
@@ -335,19 +303,14 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 204} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 
-  def clear_messages(
-        %__MODULE__{storage_context: context, queue_name: queue_name},
-        timeout \\ 30
-      ) do
+  def clear_messages(%__MODULE__{storage_context: context, queue_name: queue_name}, timeout \\ 30) do
     # https://docs.microsoft.com/en-us/rest/api/storageservices/clear-messages
 
     response =
@@ -360,12 +323,10 @@ defmodule ExMicrosoftAzureStorage.Storage.Queue do
 
     case response do
       %{status: status} when 400 <= status and status < 500 ->
-        {:error, response |> create_error_response()}
+        {:error, create_error_response(response)}
 
       %{status: 204} ->
-        {:ok,
-         response
-         |> create_success_response()}
+        {:ok, create_success_response(response)}
     end
   end
 end
