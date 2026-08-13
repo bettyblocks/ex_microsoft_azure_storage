@@ -46,7 +46,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
     :rehydrate_priority,
     :last_access_time,
     :blob_sealed,
-    :meta
+    meta: []
   ]
 
   @type meta_opts :: [{binary, binary}]
@@ -139,8 +139,7 @@ defmodule ExMicrosoftAzureStorage.Storage.BlobProperties do
   """
   @spec serialise(properties :: __MODULE__.t()) :: headers()
   def serialise(%__MODULE__{} = properties) do
-    meta_headers =
-      properties |> Map.get(:meta, []) |> Enum.map(fn {k, v} -> {"x-ms-meta-#{k}", v} end)
+    meta_headers = Enum.map(properties.meta, fn {k, v} -> {"x-ms-meta-#{k}", v} end)
 
     Enum.reduce(@headers, meta_headers, fn {header, key, type}, acc ->
       case {key, Map.get(properties, key)} do
